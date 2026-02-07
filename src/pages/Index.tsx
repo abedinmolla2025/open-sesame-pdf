@@ -4,12 +4,13 @@ import { Lock, Shield, Zap, FileKey } from "lucide-react";
 import { DropZone } from "@/components/DropZone";
 import { PasswordInput } from "@/components/PasswordInput";
 import { UnlockButton } from "@/components/UnlockButton";
+import { UnlockProgress } from "@/components/UnlockProgress";
 import { usePdfUnlocker } from "@/hooks/usePdfUnlocker";
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
-  const { status, error, unlockPdf, downloadUnlockedPdf, reset } = usePdfUnlocker();
+  const { status, error, progress, unlockPdf, downloadUnlockedPdf, reset } = usePdfUnlocker();
 
   const handleFileSelect = useCallback((file: File) => {
     setSelectedFile(file);
@@ -94,12 +95,16 @@ const Index = () => {
                   disabled={status === "unlocking" || status === "success"}
                 />
 
-                <UnlockButton
-                  status={status}
-                  onUnlock={handleUnlock}
-                  onDownload={handleDownload}
-                  disabled={!password}
-                />
+                {progress && status === "unlocking" ? (
+                  <UnlockProgress progress={progress} />
+                ) : (
+                  <UnlockButton
+                    status={status}
+                    onUnlock={handleUnlock}
+                    onDownload={handleDownload}
+                    disabled={!password}
+                  />
+                )}
 
                 {error && (
                   <motion.p
