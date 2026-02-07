@@ -3,14 +3,22 @@ import { PDFDocument } from "pdf-lib";
 
 type Status = "idle" | "unlocking" | "success" | "error";
 
+interface ProgressInfo {
+  currentPage: number;
+  totalPages: number;
+  percentage: number;
+}
+
 export const usePdfUnlocker = () => {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [unlockedPdf, setUnlockedPdf] = useState<Uint8Array | null>(null);
+  const [progress, setProgress] = useState<ProgressInfo | null>(null);
 
   const unlockPdf = useCallback(async (file: File, password: string) => {
     setStatus("unlocking");
     setError(null);
+    setProgress({ currentPage: 0, totalPages: 0, percentage: 0 });
 
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -30,14 +38,23 @@ export const usePdfUnlocker = () => {
       });
 
       const pdfDoc = await loadingTask.promise;
-      console.log(`PDF loaded successfully. Pages: ${pdfDoc.numPages}`);
+      const totalPages = pdfDoc.numPages;
+      console.log(`PDF loaded successfully. Pages: ${totalPages}`);
+      
+      setProgress({ currentPage: 0, totalPages, percentage: 0 });
 
       // Step 2: Create a new unencrypted PDF using pdf-lib
       const newPdfDoc = await PDFDocument.create();
 
       // Step 3: Render each page to canvas and embed as image
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        console.log(`Processing page ${i}/${pdfDoc.numPages}`);
+      for (let i = 1; i <= totalPages; i++) {
+        console.log(`Processing page ${i}/${totalPages}`);
+        setProgress({ 
+          currentPage: i, 
+          totalPages, 
+          percentage: Math.round((i / totalPages) * 100) 
+        });
+        
         const page = await pdfDoc.getPage(i);
         const viewport = page.getViewport({ scale: 2 }); // Higher scale for better quality
 
@@ -75,9 +92,11 @@ export const usePdfUnlocker = () => {
       const pdfBytes = await newPdfDoc.save();
       setUnlockedPdf(pdfBytes);
       setStatus("success");
+      setProgress(null);
       console.log("PDF unlocked successfully!");
     } catch (err: unknown) {
       console.error("PDF unlock error:", err);
+      setProgress(null);
       
       // Check for specific PDF.js errors
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -111,11 +130,13 @@ export const usePdfUnlocker = () => {
     setStatus("idle");
     setError(null);
     setUnlockedPdf(null);
+    setProgress(null);
   }, []);
 
   return {
     status,
     error,
+    progress,
     unlockPdf,
     downloadUnlockedPdf,
     reset,
