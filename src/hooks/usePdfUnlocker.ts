@@ -1,9 +1,5 @@
 import { useState, useCallback } from "react";
-import * as pdfjsLib from "pdfjs-dist";
 import { PDFDocument } from "pdf-lib";
-
-// Set the worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
 
 type Status = "idle" | "unlocking" | "success" | "error";
 
@@ -20,6 +16,12 @@ export const usePdfUnlocker = () => {
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       
+      // Dynamically import pdfjs-dist to avoid top-level await issues
+      const pdfjsLib = await import("pdfjs-dist");
+      
+      // Set the worker source for PDF.js
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+
       // Step 1: Use PDF.js to decrypt the password-protected PDF
       console.log("Loading PDF with password...");
       const loadingTask = pdfjsLib.getDocument({
