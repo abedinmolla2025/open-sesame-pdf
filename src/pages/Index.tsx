@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Lock, Shield, Zap, FileKey } from "lucide-react";
+import { Layout } from "@/components/Layout";
 import { DropZone } from "@/components/DropZone";
 import { PasswordInput } from "@/components/PasswordInput";
 import { UnlockButton } from "@/components/UnlockButton";
@@ -36,13 +37,14 @@ const Index = () => {
   }, [selectedFile, downloadUnlockedPdf]);
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 right-0 w-[300px] h-[300px] bg-primary/10 rounded-full blur-3xl" />
-      </div>
+    <Layout>
+      <div className="relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 right-0 w-[300px] h-[300px] bg-primary/10 rounded-full blur-3xl" />
+        </div>
 
       <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
         {/* Header */}
@@ -144,7 +146,8 @@ const Index = () => {
           />
         </motion.div>
       </div>
-    </div>
+      </div>
+    </Layout>
   );
 };
 
