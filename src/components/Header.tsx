@@ -1,10 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileKey, ShieldCheck } from "lucide-react";
+import { FileKey, ShieldCheck, ChevronDown, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { path: "/", label: "PDF Unlocker", icon: FileKey },
-  { path: "/signature", label: "Signature Tool", icon: ShieldCheck },
+  { path: "/", label: "PDF Unlocker", icon: FileKey, description: "Remove password protection" },
+  { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
 ];
 
 export const Header = () => {
@@ -20,7 +27,8 @@ export const Header = () => {
           <span className="font-display font-bold text-lg">PDF Tools</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -35,11 +43,46 @@ export const Header = () => {
                 )}
               >
                 <item.icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{item.label}</span>
+                <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
+
+        {/* Mobile Dropdown Menu */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Menu className="w-4 h-4" />
+                <span>All Tools</span>
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <DropdownMenuItem key={item.path} asChild>
+                    <Link
+                      to={item.path}
+                      className={cn(
+                        "flex items-center gap-3 w-full cursor-pointer",
+                        isActive && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <div className="flex flex-col">
+                        <span className="font-medium">{item.label}</span>
+                        <span className="text-xs text-muted-foreground">{item.description}</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );
