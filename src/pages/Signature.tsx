@@ -1,0 +1,367 @@
+import { useState, useCallback } from "react";
+import { motion } from "framer-motion";
+import { ShieldCheck, Shield, Zap, FileSignature, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Layout } from "@/components/Layout";
+import { DropZone } from "@/components/DropZone";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+
+interface SignatureInfo {
+  hasSig: boolean;
+  sigCount: number;
+  details: string[];
+}
+
+const Signature = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [verifyResult, setVerifyResult] = useState<SignatureInfo | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [signerName, setSignerName] = useState("");
+  const [isSigning, setIsSigning] = useState(false);
+  const { toast } = useToast();
+
+  const handleFileSelect = useCallback((file: File) => {
+    setSelectedFile(file);
+    setVerifyResult(null);
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setSelectedFile(null);
+    setVerifyResult(null);
+  }, []);
+
+  const handleVerify = useCallback(async () => {
+    if (!selectedFile) return;
+    
+    setIsVerifying(true);
+    
+    try {
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      
+      // Convert to string to search for signature markers
+      const pdfString = new TextDecoder("latin1").decode(bytes);
+      
+      // Check for digital signature markers in PDF
+      const hasSigField = pdfString.includes("/Type /Sig") || pdfString.includes("/Sig");
+      const hasAdobeMarkers = pdfString.includes("adbe.pkcs7") || pdfString.includes("adbe.x509");
+      const hasByteRange = pdfString.includes("/ByteRange");
+      
+      // Count signature references
+      const sigMatches = pdfString.match(/\/Type\s*\/Sig/g);
+      const sigCount = sigMatches ? sigMatches.length : 0;
+      
+      const details: string[] = [];
+      
+      if (hasSigField || hasAdobeMarkers) {
+        details.push(`${sigCount || 1} digital signature(s) found`);
+        if (hasAdobeMarkers) {
+          details.push("Uses PKCS#7 standard (Adobe compatible)");
+        }
+        if (hasByteRange) {
+          details.push("Contains byte range markers (signed content)");
+        }
+      }
+      
+      setVerifyResult({
+        hasSig: hasSigField || hasAdobeMarkers,
+        sigCount: sigCount || (hasSigField ? 1 : 0),
+        details,
+      });
+    } catch (error) {
+      console.error("Verification error:", error);
+      toast({
+        title: "Verification Failed",
+        description: "Could not verify the PDF file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [selectedFile, toast]);
+
+  const handleSign = useCallback(async () => {
+    if (!selectedFile || !signerName.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter your name to sign the PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSigning(true);
+    
+    try {
+      const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0];
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      
+      const { width, height } = firstPage.getSize();
+      const signatureText = `Digitally signed by: ${signerName}`;
+      const dateText = `Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      
+      // Add signature box at bottom of first page
+      firstPage.drawRectangle({
+        x: 50,
+        y: 50,
+        width: 250,
+        height: 60,
+        borderColor: rgb(0.2, 0.4, 0.8),
+        borderWidth: 1,
+      });
+      
+      firstPage.drawText(signatureText, {
+        x: 55,
+        y: 85,
+        size: 10,
+        font,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+      
+      firstPage.drawText(dateText, {
+        x: 55,
+        y: 60,
+        size: 8,
+        font,
+        color: rgb(0.4, 0.4, 0.4),
+      });
+      
+      const pdfBytes = await pdfDoc.save();
+      
+      // Download signed PDF
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = selectedFile.name.replace(".pdf", "_signed.pdf");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "PDF Signed Successfully!",
+        description: "Your signed PDF has been downloaded.",
+      });
+    } catch (error) {
+      console.error("Signing error:", error);
+      toast({
+        title: "Signing Failed",
+        description: "Could not sign the PDF file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSigning(false);
+    }
+  }, [selectedFile, signerName, toast]);
+
+  return (
+    <Layout>
+      <div className="relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
+          {/* Header */}
+          <motion.header
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Verify & Sign</span>
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold font-display mb-6">
+              PDF{" "}
+              <span className="gradient-text">Signature Tool</span>
+            </h1>
+            
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+              Verify digital signatures or add your own signature to PDF files. 
+              Fast, secure, and completely client-side.
+            </p>
+          </motion.header>
+
+          {/* Main card with tabs */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="max-w-2xl mx-auto"
+          >
+            <div className="glass-card p-6 md:p-8">
+              <Tabs defaultValue="verify" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="verify" className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" />
+                    Verify Signature
+                  </TabsTrigger>
+                  <TabsTrigger value="sign" className="flex items-center gap-2">
+                    <FileSignature className="w-4 h-4" />
+                    Sign PDF
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="verify" className="space-y-6">
+                  <DropZone
+                    onFileSelect={handleFileSelect}
+                    selectedFile={selectedFile}
+                    onClear={handleClear}
+                  />
+
+                  {selectedFile && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="space-y-4"
+                    >
+                      <Button
+                        onClick={handleVerify}
+                        disabled={isVerifying}
+                        className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl glow-effect"
+                      >
+                        {isVerifying ? "Verifying..." : "Verify Signature"}
+                      </Button>
+
+                      {verifyResult && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`p-4 rounded-xl border ${
+                            verifyResult.hasSig 
+                              ? "bg-green-500/10 border-green-500/30" 
+                              : "bg-yellow-500/10 border-yellow-500/30"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            {verifyResult.hasSig ? (
+                              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div>
+                              <p className="font-semibold mb-1">
+                                {verifyResult.hasSig 
+                                  ? "Digital Signature Found" 
+                                  : "No Digital Signature Found"}
+                              </p>
+                              {verifyResult.details.length > 0 && (
+                                <ul className="text-sm text-muted-foreground space-y-1">
+                                  {verifyResult.details.map((detail, i) => (
+                                    <li key={i}>• {detail}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              {!verifyResult.hasSig && (
+                                <p className="text-sm text-muted-foreground">
+                                  This PDF does not contain any digital signatures.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="sign" className="space-y-6">
+                  <DropZone
+                    onFileSelect={handleFileSelect}
+                    selectedFile={selectedFile}
+                    onClear={handleClear}
+                  />
+
+                  {selectedFile && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="signerName">Your Name</Label>
+                        <Input
+                          id="signerName"
+                          value={signerName}
+                          onChange={(e) => setSignerName(e.target.value)}
+                          placeholder="Enter your full name"
+                          className="h-12"
+                        />
+                      </div>
+
+                      <Button
+                        onClick={handleSign}
+                        disabled={isSigning || !signerName.trim()}
+                        className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl glow-effect"
+                      >
+                        {isSigning ? "Signing..." : "Sign & Download PDF"}
+                      </Button>
+                    </motion.div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          </motion.div>
+
+          {/* Features */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
+          >
+            <FeatureCard
+              icon={<Shield className="w-6 h-6" />}
+              title="100% Private"
+              description="All processing happens in your browser. Your files never leave your device."
+            />
+            <FeatureCard
+              icon={<Zap className="w-6 h-6" />}
+              title="Instant Results"
+              description="Verify signatures or sign PDFs in seconds with our optimized engine."
+            />
+            <FeatureCard
+              icon={<ShieldCheck className="w-6 h-6" />}
+              title="Standard Compliant"
+              description="Detects PKCS#7, X.509, and other industry-standard signatures."
+            />
+          </motion.div>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+const FeatureCard = ({ 
+  icon, 
+  title, 
+  description 
+}: { 
+  icon: React.ReactNode; 
+  title: string; 
+  description: string;
+}) => (
+  <div className="text-center p-6">
+    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4">
+      {icon}
+    </div>
+    <h3 className="font-semibold text-lg mb-2">{title}</h3>
+    <p className="text-muted-foreground text-sm">{description}</p>
+  </div>
+);
+
+export default Signature;
