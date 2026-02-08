@@ -1,12 +1,13 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { FileEdit, Upload, AlertCircle, Info } from "lucide-react";
+import { FileEdit, AlertCircle, Info } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { DropZone } from "@/components/DropZone";
 import { PdfEditorCanvas } from "@/components/PdfEditorCanvas";
 import { EditorToolbar } from "@/components/EditorToolbar";
 import { usePdfEditor } from "@/hooks/usePdfEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const Editor = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -45,47 +46,55 @@ const Editor = () => {
 
   const handleSave = useCallback(() => {
     if (selectedFile) {
+      console.log("Saving PDF:", selectedFile.name);
       savePdf(selectedFile.name);
     }
   }, [selectedFile, savePdf]);
 
-  const handleZoomIn = () => setScale((s) => Math.min(s + 0.25, 3));
-  const handleZoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
-  const handlePrevPage = () => setCurrentPage((p) => Math.max(p - 1, 0));
+  const handleZoomIn = () => {
+    const newScale = Math.min(scale + 0.25, 3);
+    setScale(newScale);
+  };
+  
+  const handleZoomOut = () => {
+    const newScale = Math.max(scale - 0.25, 0.5);
+    setScale(newScale);
+  };
+
+  const handlePrevPage = () => setCurrentPage(Math.max(currentPage - 1, 0));
   const handleNextPage = () =>
-    setCurrentPage((p) => Math.min(p + 1, pages.length - 1));
+    setCurrentPage(Math.min(currentPage + 1, pages.length - 1));
 
   return (
     <Layout>
-      <div className="relative overflow-hidden min-h-screen">
+      <div className="relative min-h-screen">
         {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 py-12">
+        <div className="relative z-10 container mx-auto px-4 py-8 md:py-12">
           {/* Header */}
           <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            className="text-center mb-8"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
               <FileEdit className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">
                 Edit & Modify
               </span>
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-6">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-display mb-4">
               <span className="gradient-text">PDF Editor</span>
             </h1>
 
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Add, edit, and modify text in your PDF documents. 
-              Click anywhere to add new text blocks.
+            <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
+              Double-click any text to edit. Click "Add Text" to insert new text.
             </p>
           </motion.header>
 
@@ -106,9 +115,9 @@ const Editor = () => {
 
                 <Alert className="mt-6 border-primary/20 bg-primary/5">
                   <Info className="w-4 h-4 text-primary" />
-                  <AlertDescription className="text-muted-foreground">
+                  <AlertDescription className="text-muted-foreground text-sm">
                     <strong className="text-foreground">Tips:</strong> Double-click on text to edit. 
-                    Drag text blocks to reposition. Use "Add Text" to insert new text anywhere.
+                    Use "Add Text" to insert new text anywhere. Save to download edited PDF.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -151,7 +160,7 @@ const Editor = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="max-w-6xl mx-auto"
+              className="w-full"
             >
               <EditorToolbar
                 currentPage={currentPage}
@@ -168,16 +177,18 @@ const Editor = () => {
                 onReset={handleClear}
               />
 
-              {/* PDF Canvas */}
-              <div className="overflow-auto pb-10">
-                <PdfEditorCanvas
-                  page={pages[currentPage]}
-                  textBlocks={textBlocks}
-                  onUpdateTextBlock={updateTextBlock}
-                  onAddTextBlock={addTextBlock}
-                  onDeleteTextBlock={deleteTextBlock}
-                  isAddingText={isAddingText}
-                />
+              {/* PDF Canvas with Scroll */}
+              <div className="bg-muted/30 rounded-xl border border-border p-4 overflow-auto max-h-[70vh]">
+                <div className="min-w-fit">
+                  <PdfEditorCanvas
+                    page={pages[currentPage]}
+                    textBlocks={textBlocks}
+                    onUpdateTextBlock={updateTextBlock}
+                    onAddTextBlock={addTextBlock}
+                    onDeleteTextBlock={deleteTextBlock}
+                    isAddingText={isAddingText}
+                  />
+                </div>
               </div>
 
               {/* Page Thumbnails */}
@@ -196,11 +207,19 @@ const Editor = () => {
                       <img
                         src={page.imageUrl}
                         alt={`Page ${index + 1}`}
-                        className="h-20 w-auto"
+                        className="h-16 w-auto"
                       />
                     </button>
                   ))}
                 </div>
+              )}
+
+              {/* Modified indicator */}
+              {textBlocks.some(b => b.isModified) && (
+                <p className="text-center text-sm text-muted-foreground mt-4">
+                  <span className="inline-block w-2 h-2 bg-primary rounded-full mr-2" />
+                  You have unsaved changes
+                </p>
               )}
             </motion.div>
           )}
