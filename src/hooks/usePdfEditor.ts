@@ -74,7 +74,15 @@ export interface PdfPage {
   isDeleted: boolean;
 }
 
-export type EditorTool = "select" | "text" | "whiteout" | "image" | "rectangle" | "circle" | "line" | "arrow" | "highlight" | "underline" | "strikethrough";
+export interface FreehandPath {
+  id: string;
+  points: { x: number; y: number }[];
+  color: string;
+  strokeWidth: number;
+  pageIndex: number;
+}
+
+export type EditorTool = "select" | "text" | "whiteout" | "image" | "rectangle" | "circle" | "line" | "arrow" | "highlight" | "underline" | "strikethrough" | "pen";
 type EditorStatus = "idle" | "loading" | "ready" | "saving" | "error";
 
 interface EditorSnapshot {
@@ -84,6 +92,7 @@ interface EditorSnapshot {
   images: ImageBlock[];
   shapes: ShapeBlock[];
   annotations: AnnotationBlock[];
+  freehandPaths: FreehandPath[];
   pages: PdfPage[];
 }
 
@@ -97,6 +106,7 @@ export const usePdfEditor = () => {
   const [images, setImages] = useState<ImageBlock[]>([]);
   const [shapes, setShapes] = useState<ShapeBlock[]>([]);
   const [annotations, setAnnotations] = useState<AnnotationBlock[]>([]);
+  const [freehandPaths, setFreehandPaths] = useState<FreehandPath[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [scale, setScale] = useState(1);
   const [activeTool, setActiveTool] = useState<EditorTool>("select");
@@ -115,8 +125,9 @@ export const usePdfEditor = () => {
     images: structuredClone(images),
     shapes: structuredClone(shapes),
     annotations: structuredClone(annotations),
+    freehandPaths: structuredClone(freehandPaths),
     pages: structuredClone(pages),
-  }), [textBlocks, deletedOriginals, whiteouts, images, shapes, annotations, pages]);
+  }), [textBlocks, deletedOriginals, whiteouts, images, shapes, annotations, freehandPaths, pages]);
 
   const pushHistory = useCallback(() => {
     if (isRestoringRef.current) return;
@@ -136,6 +147,7 @@ export const usePdfEditor = () => {
     setImages(snap.images);
     setShapes(snap.shapes);
     setAnnotations(snap.annotations);
+    setFreehandPaths(snap.freehandPaths);
     setPages(snap.pages);
     setTimeout(() => { isRestoringRef.current = false; }, 0);
   }, []);
@@ -224,6 +236,7 @@ export const usePdfEditor = () => {
     setImages([]);
     setShapes([]);
     setAnnotations([]);
+    setFreehandPaths([]);
     setCurrentPage(0);
     setActiveTool("select");
     historyRef.current = [];
@@ -253,6 +266,7 @@ export const usePdfEditor = () => {
           images: [],
           shapes: [],
           annotations: [],
+          freehandPaths: [],
           pages: structuredClone(loadedPages),
         }];
         historyPointerRef.current = 0;
@@ -409,6 +423,25 @@ export const usePdfEditor = () => {
     setAnnotations(prev => prev.filter(a => a.id !== id));
   }, [pushHistory]);
 
+  // Freehand drawing
+  const addFreehandPath = useCallback((pageIndex: number, points: { x: number; y: number }[], color: string = "#000000", strokeWidth: number = 2) => {
+    pushHistory();
+    const path: FreehandPath = {
+      id: `fh-${Date.now()}`, points, color, strokeWidth, pageIndex,
+    };
+    setFreehandPaths(prev => [...prev, path]);
+    return path.id;
+  }, [pushHistory]);
+
+  const updateFreehandPath = useCallback((id: string, updates: Partial<FreehandPath>) => {
+    setFreehandPaths(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  }, []);
+
+  const deleteFreehandPath = useCallback((id: string) => {
+    pushHistory();
+    setFreehandPaths(prev => prev.filter(p => p.id !== id));
+  }, [pushHistory]);
+
   // Page management
   const deletePage = useCallback((pageIndex: number) => {
     pushHistory();
@@ -533,6 +566,25 @@ export const usePdfEditor = () => {
         }
       }
 
+      // Draw freehand paths
+      for (const path of freehandPaths) {
+        const newIdx = pageIndexMap.get(path.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
+        if (!page) continue;
+        const { height } = page.getSize();
+        const color = parseColor(path.color);
+        const pts = path.points;
+        for (let i = 0; i < pts.length - 1; i++) {
+          page.drawLine({
+            start: { x: pts[i].x / scale, y: height - pts[i].y / scale },
+            end: { x: pts[i + 1].x / scale, y: height - pts[i + 1].y / scale },
+            thickness: path.strokeWidth / scale,
+            color,
+          });
+        }
+      }
+
       // Draw shapes
       for (const shape of shapes) {
         const newIdx = pageIndexMap.get(shape.pageIndex);
@@ -624,7 +676,7 @@ export const usePdfEditor = () => {
       setError("Failed to save PDF. " + (err as Error).message);
       setStatus("error");
     }
-  }, [textBlocks, deletedOriginals, whiteouts, images, shapes, annotations, pages, scale]);
+  }, [textBlocks, deletedOriginals, whiteouts, images, shapes, annotations, freehandPaths, pages, scale]);
 
   const reset = useCallback(() => {
     setStatus("idle");
@@ -636,6 +688,7 @@ export const usePdfEditor = () => {
     setImages([]);
     setShapes([]);
     setAnnotations([]);
+    setFreehandPaths([]);
     setCurrentPage(0);
     setActiveTool("select");
     pdfDocRef.current = null;
@@ -645,7 +698,7 @@ export const usePdfEditor = () => {
   }, []);
 
   return {
-    status, error, pages, textBlocks, whiteouts, images, shapes, annotations,
+    status, error, pages, textBlocks, whiteouts, images, shapes, annotations, freehandPaths,
     currentPage, scale, activeTool,
     setCurrentPage, setScale: changeScale, setActiveTool,
     loadPdf, updateTextBlock, addTextBlock, deleteTextBlock,
@@ -653,6 +706,7 @@ export const usePdfEditor = () => {
     addImage, updateImage, deleteImage,
     addShape, updateShape, deleteShape,
     addAnnotation, updateAnnotation, deleteAnnotation,
+    addFreehandPath, updateFreehandPath, deleteFreehandPath,
     deletePage, restorePage, rotatePage, movePage,
     undo, redo, canUndo, canRedo,
     savePdf, reset,

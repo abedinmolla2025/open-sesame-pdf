@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Trash2, Edit3, Check, Move } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TextPropertiesBar } from "@/components/TextPropertiesBar";
-import type { PdfPage, TextBlock, WhiteoutBlock, ImageBlock, ShapeBlock, AnnotationBlock, EditorTool } from "@/hooks/usePdfEditor";
+import type { PdfPage, TextBlock, WhiteoutBlock, ImageBlock, ShapeBlock, AnnotationBlock, FreehandPath, EditorTool } from "@/hooks/usePdfEditor";
 
 interface PdfEditorCanvasProps {
   page: PdfPage;
@@ -11,6 +11,7 @@ interface PdfEditorCanvasProps {
   images: ImageBlock[];
   shapes: ShapeBlock[];
   annotations: AnnotationBlock[];
+  freehandPaths: FreehandPath[];
   activeTool: EditorTool;
   onUpdateTextBlock: (id: string, updates: Partial<TextBlock>) => void;
   onAddTextBlock: (pageIndex: number, x: number, y: number) => string;
@@ -26,21 +27,27 @@ interface PdfEditorCanvasProps {
   onAddAnnotation: (pageIndex: number, type: "highlight" | "underline" | "strikethrough", x: number, y: number, w: number, h: number) => string;
   onUpdateAnnotation: (id: string, updates: Partial<AnnotationBlock>) => void;
   onDeleteAnnotation: (id: string) => void;
+  onAddFreehandPath: (pageIndex: number, points: { x: number; y: number }[], color?: string, strokeWidth?: number) => string;
+  onUpdateFreehandPath: (id: string, updates: Partial<FreehandPath>) => void;
+  onDeleteFreehandPath: (id: string) => void;
 }
 
 export const PdfEditorCanvas = ({
-  page, textBlocks, whiteouts, images, shapes, annotations, activeTool,
+  page, textBlocks, whiteouts, images, shapes, annotations, freehandPaths, activeTool,
   onUpdateTextBlock, onAddTextBlock, onDeleteTextBlock,
   onAddWhiteout, onDeleteWhiteout,
   onAddImage, onUpdateImage, onDeleteImage,
   onAddShape, onUpdateShape, onDeleteShape,
   onAddAnnotation, onUpdateAnnotation, onDeleteAnnotation,
+  onAddFreehandPath, onUpdateFreehandPath, onDeleteFreehandPath,
 }: PdfEditorCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [penPoints, setPenPoints] = useState<{ x: number; y: number }[]>([]);
+  const [isPenDrawing, setIsPenDrawing] = useState(false);
 
   const getRelPos = (e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -55,7 +62,12 @@ export const PdfEditorCanvas = ({
     if (e.target !== containerRef.current && !(e.target as HTMLElement).closest('.pdf-bg')) return;
     const pos = getRelPos(e);
 
-    if (isDrawTool(activeTool)) {
+    if (activeTool === "pen") {
+      setPenPoints([pos]);
+      setIsPenDrawing(true);
+      setSelectedId(null);
+      e.preventDefault();
+    } else if (isDrawTool(activeTool)) {
       setDrawStart(pos);
       setDrawCurrent(pos);
       setIsDrawing(true);
@@ -72,11 +84,24 @@ export const PdfEditorCanvas = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPenDrawing) {
+      setPenPoints(prev => [...prev, getRelPos(e)]);
+      return;
+    }
     if (!isDrawing || !drawStart) return;
     setDrawCurrent(getRelPos(e));
   };
 
   const handleMouseUp = () => {
+    if (isPenDrawing) {
+      if (penPoints.length > 2) {
+        onAddFreehandPath(page.pageIndex, penPoints);
+      }
+      setPenPoints([]);
+      setIsPenDrawing(false);
+      return;
+    }
+
     if (!isDrawing || !drawStart || !drawCurrent) {
       setIsDrawing(false);
       return;
@@ -139,6 +164,7 @@ export const PdfEditorCanvas = ({
   const pageImages = images.filter(i => i.pageIndex === page.pageIndex);
   const pageShapes = shapes.filter(s => s.pageIndex === page.pageIndex);
   const pageAnnotations = annotations.filter(a => a.pageIndex === page.pageIndex);
+  const pageFreehandPaths = freehandPaths.filter(f => f.pageIndex === page.pageIndex);
 
   const drawRect = drawStart && drawCurrent && isDrawing ? {
     x: Math.min(drawStart.x, drawCurrent.x),
@@ -146,6 +172,11 @@ export const PdfEditorCanvas = ({
     w: Math.abs(drawCurrent.x - drawStart.x),
     h: Math.abs(drawCurrent.y - drawStart.y),
   } : null;
+
+  const pointsToSvgPath = (points: { x: number; y: number }[]) => {
+    if (points.length < 2) return "";
+    return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  };
 
   const cursorClass = activeTool === "select" ? "cursor-default"
     : activeTool === "text" ? "cursor-text"
@@ -334,6 +365,53 @@ export const PdfEditorCanvas = ({
           onDelete={() => { onDeleteTextBlock(block.id); setSelectedId(null); }}
         />
       ))}
+
+      {/* Freehand paths */}
+      {pageFreehandPaths.map(path => (
+        <svg
+          key={path.id}
+          className={cn("absolute inset-0 pointer-events-none", selectedId === path.id && "z-10")}
+          width={page.width} height={page.height}
+          style={{ pointerEvents: selectedId === path.id ? "auto" : "none" }}
+        >
+          <path
+            d={pointsToSvgPath(path.points)}
+            fill="none" stroke={path.color} strokeWidth={path.strokeWidth}
+            strokeLinecap="round" strokeLinejoin="round"
+            style={{ pointerEvents: "stroke", cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); setSelectedId(path.id); }}
+          />
+          {selectedId === path.id && (
+            <foreignObject x={path.points[0]?.x - 10} y={path.points[0]?.y - 36} width={80} height={32}>
+              <div className="flex gap-1" onMouseDown={e => e.stopPropagation()}>
+                <input
+                  type="color" value={path.color}
+                  onChange={(e) => onUpdateFreehandPath(path.id, { color: e.target.value })}
+                  className="w-6 h-6 rounded cursor-pointer border border-border bg-card"
+                  onClick={e => e.stopPropagation()}
+                />
+                <button
+                  className="p-1 bg-destructive text-destructive-foreground rounded shadow"
+                  onClick={(e) => { e.stopPropagation(); onDeleteFreehandPath(path.id); setSelectedId(null); }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </foreignObject>
+          )}
+        </svg>
+      ))}
+
+      {/* Pen drawing preview */}
+      {isPenDrawing && penPoints.length > 1 && (
+        <svg className="absolute inset-0 pointer-events-none z-20" width={page.width} height={page.height}>
+          <path
+            d={pointsToSvgPath(penPoints)}
+            fill="none" stroke="#000000" strokeWidth={2}
+            strokeLinecap="round" strokeLinejoin="round"
+          />
+        </svg>
+      )}
 
       {/* Drawing preview */}
       {drawRect && drawRect.w > 2 && drawRect.h > 2 && (
