@@ -470,11 +470,14 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       ) : (
         <span
           className={cn(
-            "whitespace-nowrap cursor-pointer rounded px-0.5 transition-colors",
-            isSelected ? "bg-primary/15" : "hover:bg-primary/10"
+            "whitespace-nowrap cursor-pointer rounded px-0.5 transition-all",
+            isSelected ? "bg-primary/15" : "hover:bg-blue-100/60",
+            // Original unmodified text: invisible until hovered/selected (PDF image already shows it)
+            block.isOriginal && !block.isModified && !isSelected && "text-transparent hover:text-transparent"
           )}
           style={{
-            fontSize: block.fontSize, fontFamily: block.fontFamily, color: block.color,
+            fontSize: block.fontSize, fontFamily: block.fontFamily,
+            color: (block.isOriginal && !block.isModified && !isSelected) ? "transparent" : block.color,
             fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
             lineHeight: 1.2,
           }}
