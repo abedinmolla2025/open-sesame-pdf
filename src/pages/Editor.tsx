@@ -146,7 +146,7 @@ const Editor = () => {
                 </div>
               )}
 
-              {textBlocks.some(b => b.isModified) && (
+              {(textBlocks.some(b => b.isModified) || whiteouts.length > 0 || images.length > 0 || shapes.length > 0) && (
                 <p className="text-center text-sm text-muted-foreground mt-4">
                   <span className="inline-block w-2 h-2 bg-primary rounded-full mr-2" />
                   You have unsaved changes
