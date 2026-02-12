@@ -53,15 +53,39 @@ export interface ShapeBlock {
   pageIndex: number;
 }
 
+export interface AnnotationBlock {
+  id: string;
+  type: "highlight" | "underline" | "strikethrough";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  opacity: number;
+  pageIndex: number;
+}
+
 export interface PdfPage {
   pageIndex: number;
   width: number;
   height: number;
   imageUrl: string;
+  rotation: number;
+  isDeleted: boolean;
 }
 
-export type EditorTool = "select" | "text" | "whiteout" | "image" | "rectangle" | "circle" | "line" | "arrow";
+export type EditorTool = "select" | "text" | "whiteout" | "image" | "rectangle" | "circle" | "line" | "arrow" | "highlight" | "underline" | "strikethrough";
 type EditorStatus = "idle" | "loading" | "ready" | "saving" | "error";
+
+interface EditorSnapshot {
+  textBlocks: TextBlock[];
+  deletedOriginals: TextBlock[];
+  whiteouts: WhiteoutBlock[];
+  images: ImageBlock[];
+  shapes: ShapeBlock[];
+  annotations: AnnotationBlock[];
+  pages: PdfPage[];
+}
 
 export const usePdfEditor = () => {
   const [status, setStatus] = useState<EditorStatus>("idle");
@@ -72,11 +96,69 @@ export const usePdfEditor = () => {
   const [whiteouts, setWhiteouts] = useState<WhiteoutBlock[]>([]);
   const [images, setImages] = useState<ImageBlock[]>([]);
   const [shapes, setShapes] = useState<ShapeBlock[]>([]);
+  const [annotations, setAnnotations] = useState<AnnotationBlock[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [scale, setScale] = useState(1);
   const [activeTool, setActiveTool] = useState<EditorTool>("select");
   const pdfDocRef = useRef<any>(null);
   const pdfBytesRef = useRef<Uint8Array | null>(null);
+
+  // Undo/Redo
+  const historyRef = useRef<EditorSnapshot[]>([]);
+  const historyPointerRef = useRef(-1);
+  const isRestoringRef = useRef(false);
+
+  const takeSnapshot = useCallback((): EditorSnapshot => ({
+    textBlocks: structuredClone(textBlocks),
+    deletedOriginals: structuredClone(deletedOriginals),
+    whiteouts: structuredClone(whiteouts),
+    images: structuredClone(images),
+    shapes: structuredClone(shapes),
+    annotations: structuredClone(annotations),
+    pages: structuredClone(pages),
+  }), [textBlocks, deletedOriginals, whiteouts, images, shapes, annotations, pages]);
+
+  const pushHistory = useCallback(() => {
+    if (isRestoringRef.current) return;
+    const snap = takeSnapshot();
+    const arr = historyRef.current.slice(0, historyPointerRef.current + 1);
+    arr.push(snap);
+    if (arr.length > 50) arr.shift();
+    historyRef.current = arr;
+    historyPointerRef.current = arr.length - 1;
+  }, [takeSnapshot]);
+
+  const restoreSnapshot = useCallback((snap: EditorSnapshot) => {
+    isRestoringRef.current = true;
+    setTextBlocks(snap.textBlocks);
+    setDeletedOriginals(snap.deletedOriginals);
+    setWhiteouts(snap.whiteouts);
+    setImages(snap.images);
+    setShapes(snap.shapes);
+    setAnnotations(snap.annotations);
+    setPages(snap.pages);
+    setTimeout(() => { isRestoringRef.current = false; }, 0);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (historyPointerRef.current <= 0) return;
+    // Save current state if at the end
+    if (historyPointerRef.current === historyRef.current.length - 1) {
+      const snap = takeSnapshot();
+      historyRef.current[historyPointerRef.current] = snap;
+    }
+    historyPointerRef.current -= 1;
+    restoreSnapshot(historyRef.current[historyPointerRef.current]);
+  }, [takeSnapshot, restoreSnapshot]);
+
+  const redo = useCallback(() => {
+    if (historyPointerRef.current >= historyRef.current.length - 1) return;
+    historyPointerRef.current += 1;
+    restoreSnapshot(historyRef.current[historyPointerRef.current]);
+  }, [restoreSnapshot]);
+
+  const canUndo = historyPointerRef.current > 0;
+  const canRedo = historyPointerRef.current < historyRef.current.length - 1;
 
   const renderPages = useCallback(async (pdfDoc: any, renderScale: number) => {
     const loadedPages: PdfPage[] = [];
@@ -98,6 +180,8 @@ export const usePdfEditor = () => {
         width: viewport.width,
         height: viewport.height,
         imageUrl: canvas.toDataURL("image/png"),
+        rotation: 0,
+        isDeleted: false,
       });
 
       const textContent = await page.getTextContent();
@@ -139,8 +223,11 @@ export const usePdfEditor = () => {
     setWhiteouts([]);
     setImages([]);
     setShapes([]);
+    setAnnotations([]);
     setCurrentPage(0);
     setActiveTool("select");
+    historyRef.current = [];
+    historyPointerRef.current = -1;
 
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -156,6 +243,20 @@ export const usePdfEditor = () => {
       setPages(loadedPages);
       setTextBlocks(extractedTextBlocks);
       setStatus("ready");
+
+      // Initialize history
+      setTimeout(() => {
+        historyRef.current = [{
+          textBlocks: structuredClone(extractedTextBlocks),
+          deletedOriginals: [],
+          whiteouts: [],
+          images: [],
+          shapes: [],
+          annotations: [],
+          pages: structuredClone(loadedPages),
+        }];
+        historyPointerRef.current = 0;
+      }, 100);
     } catch (err) {
       console.error("PDF load error:", err);
       setError("Failed to load PDF. Please try another file.");
@@ -182,19 +283,26 @@ export const usePdfEditor = () => {
       });
       const newBlocks = scaledModifiedBlocks.filter(b => !b.isOriginal);
 
-      // Scale other elements
+      // Preserve page state (rotation, deletion)
+      const updatedPages = loadedPages.map(lp => {
+        const existing = pages.find(p => p.pageIndex === lp.pageIndex);
+        return existing ? { ...lp, rotation: existing.rotation, isDeleted: existing.isDeleted } : lp;
+      });
+
       setWhiteouts(prev => prev.map(w => ({ ...w, x: w.x * scaleRatio, y: w.y * scaleRatio, width: w.width * scaleRatio, height: w.height * scaleRatio })));
       setImages(prev => prev.map(img => ({ ...img, x: img.x * scaleRatio, y: img.y * scaleRatio, width: img.width * scaleRatio, height: img.height * scaleRatio })));
       setShapes(prev => prev.map(s => ({ ...s, x: s.x * scaleRatio, y: s.y * scaleRatio, width: s.width * scaleRatio, height: s.height * scaleRatio, strokeWidth: s.strokeWidth * scaleRatio })));
+      setAnnotations(prev => prev.map(a => ({ ...a, x: a.x * scaleRatio, y: a.y * scaleRatio, width: a.width * scaleRatio, height: a.height * scaleRatio })));
 
-      setPages(loadedPages);
+      setPages(updatedPages);
       setTextBlocks([...mergedBlocks, ...newBlocks]);
     } catch (err) {
       console.error("Scale change error:", err);
     }
-  }, [pdfDocRef, status, scale, textBlocks, renderPages]);
+  }, [pdfDocRef, status, scale, textBlocks, pages, renderPages]);
 
   const updateTextBlock = useCallback((id: string, updates: Partial<TextBlock>) => {
+    pushHistory();
     setTextBlocks(prev => prev.map(block => {
       if (block.id !== id) return block;
       const newBlock = { ...block, ...updates };
@@ -202,9 +310,10 @@ export const usePdfEditor = () => {
       if (updates.bold !== undefined || updates.italic !== undefined || updates.color !== undefined || updates.fontSize !== undefined) newBlock.isModified = true;
       return newBlock;
     }));
-  }, []);
+  }, [pushHistory]);
 
   const addTextBlock = useCallback((pageIndex: number, x: number, y: number) => {
+    pushHistory();
     const newBlock: TextBlock = {
       id: `text-new-${Date.now()}`,
       text: "New text", originalText: "",
@@ -215,9 +324,10 @@ export const usePdfEditor = () => {
     };
     setTextBlocks(prev => [...prev, newBlock]);
     return newBlock.id;
-  }, []);
+  }, [pushHistory]);
 
   const deleteTextBlock = useCallback((id: string) => {
+    pushHistory();
     setTextBlocks(prev => {
       const block = prev.find(b => b.id === id);
       if (block && block.isOriginal) {
@@ -225,57 +335,117 @@ export const usePdfEditor = () => {
       }
       return prev.filter(b => b.id !== id);
     });
-  }, []);
+  }, [pushHistory]);
 
   // Whiteout
   const addWhiteout = useCallback((pageIndex: number, x: number, y: number, width: number, height: number) => {
+    pushHistory();
     const wo: WhiteoutBlock = { id: `wo-${Date.now()}`, x, y, width, height, pageIndex };
     setWhiteouts(prev => [...prev, wo]);
     return wo.id;
-  }, []);
+  }, [pushHistory]);
 
   const deleteWhiteout = useCallback((id: string) => {
+    pushHistory();
     setWhiteouts(prev => prev.filter(w => w.id !== id));
-  }, []);
+  }, [pushHistory]);
 
   // Images
   const addImage = useCallback((pageIndex: number, src: string, x: number, y: number, width: number, height: number) => {
+    pushHistory();
     const img: ImageBlock = { id: `img-${Date.now()}`, src, x, y, width, height, pageIndex };
     setImages(prev => [...prev, img]);
     return img.id;
-  }, []);
+  }, [pushHistory]);
 
   const updateImage = useCallback((id: string, updates: Partial<ImageBlock>) => {
     setImages(prev => prev.map(img => img.id === id ? { ...img, ...updates } : img));
   }, []);
 
   const deleteImage = useCallback((id: string) => {
+    pushHistory();
     setImages(prev => prev.filter(img => img.id !== id));
-  }, []);
+  }, [pushHistory]);
 
   // Shapes
   const addShape = useCallback((pageIndex: number, type: ShapeType, x: number, y: number, width: number, height: number) => {
+    pushHistory();
     const shape: ShapeBlock = {
       id: `shape-${Date.now()}`, type, x, y, width, height,
       strokeColor: "#000000", fillColor: "transparent", strokeWidth: 2, pageIndex,
     };
     setShapes(prev => [...prev, shape]);
     return shape.id;
-  }, []);
+  }, [pushHistory]);
 
   const updateShape = useCallback((id: string, updates: Partial<ShapeBlock>) => {
     setShapes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   }, []);
 
   const deleteShape = useCallback((id: string) => {
+    pushHistory();
     setShapes(prev => prev.filter(s => s.id !== id));
+  }, [pushHistory]);
+
+  // Annotations (highlight, underline, strikethrough)
+  const addAnnotation = useCallback((pageIndex: number, type: "highlight" | "underline" | "strikethrough", x: number, y: number, width: number, height: number) => {
+    pushHistory();
+    const annotation: AnnotationBlock = {
+      id: `annot-${Date.now()}`, type, x, y, width, height,
+      color: type === "highlight" ? "#FFEB3B" : type === "strikethrough" ? "#F44336" : "#2196F3",
+      opacity: type === "highlight" ? 0.35 : 0.8,
+      pageIndex,
+    };
+    setAnnotations(prev => [...prev, annotation]);
+    return annotation.id;
+  }, [pushHistory]);
+
+  const updateAnnotation = useCallback((id: string, updates: Partial<AnnotationBlock>) => {
+    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
   }, []);
+
+  const deleteAnnotation = useCallback((id: string) => {
+    pushHistory();
+    setAnnotations(prev => prev.filter(a => a.id !== id));
+  }, [pushHistory]);
+
+  // Page management
+  const deletePage = useCallback((pageIndex: number) => {
+    pushHistory();
+    setPages(prev => prev.map(p => p.pageIndex === pageIndex ? { ...p, isDeleted: true } : p));
+    // Move to next available page
+    const availablePages = pages.filter(p => !p.isDeleted && p.pageIndex !== pageIndex);
+    if (availablePages.length > 0) {
+      const nextPage = availablePages.find(p => p.pageIndex > pageIndex) || availablePages[0];
+      setCurrentPage(pages.indexOf(nextPage));
+    }
+  }, [pushHistory, pages]);
+
+  const restorePage = useCallback((pageIndex: number) => {
+    pushHistory();
+    setPages(prev => prev.map(p => p.pageIndex === pageIndex ? { ...p, isDeleted: false } : p));
+  }, [pushHistory]);
+
+  const rotatePage = useCallback((pageIndex: number, degrees: number) => {
+    pushHistory();
+    setPages(prev => prev.map(p => p.pageIndex === pageIndex ? { ...p, rotation: (p.rotation + degrees) % 360 } : p));
+  }, [pushHistory]);
+
+  const movePage = useCallback((fromIndex: number, toIndex: number) => {
+    pushHistory();
+    setPages(prev => {
+      const arr = [...prev];
+      const [moved] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, moved);
+      return arr.map((p, i) => ({ ...p, pageIndex: i }));
+    });
+  }, [pushHistory]);
 
   const savePdf = useCallback(async (fileName: string) => {
     if (!pdfBytesRef.current) return;
     setStatus("saving");
     try {
-      const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+      const { PDFDocument, rgb, StandardFonts, degrees } = await import("pdf-lib");
       const pdfDoc = await PDFDocument.load(pdfBytesRef.current);
       const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -288,9 +458,33 @@ export const usePdfEditor = () => {
         return rgb(parseInt(h.substring(0, 2), 16) / 255, parseInt(h.substring(2, 4), 16) / 255, parseInt(h.substring(4, 6), 16) / 255);
       };
 
+      // Handle page rotations
+      for (const pg of pages) {
+        if (pg.rotation !== 0 && pagesArr[pg.pageIndex]) {
+          pagesArr[pg.pageIndex].setRotation(degrees(pg.rotation));
+        }
+      }
+
+      // Remove deleted pages (in reverse to preserve indices)
+      const deletedIndices = pages.filter(p => p.isDeleted).map(p => p.pageIndex).sort((a, b) => b - a);
+      for (const idx of deletedIndices) {
+        if (idx < pdfDoc.getPageCount()) {
+          pdfDoc.removePage(idx);
+        }
+      }
+
+      // Re-get pages after removal
+      const finalPages = pdfDoc.getPages();
+      // Map original page index to new index after deletions
+      const activePages = pages.filter(p => !p.isDeleted);
+      const pageIndexMap = new Map<number, number>();
+      activePages.forEach((p, i) => pageIndexMap.set(p.pageIndex, i));
+
       // Whiteout deleted original text blocks
       for (const deleted of deletedOriginals) {
-        const page = pagesArr[deleted.pageIndex];
+        const newIdx = pageIndexMap.get(deleted.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
         const fontSize = deleted.fontSize / scale;
@@ -303,9 +497,11 @@ export const usePdfEditor = () => {
         });
       }
 
-      // Draw whiteouts first
+      // Draw whiteouts
       for (const wo of whiteouts) {
-        const page = pagesArr[wo.pageIndex];
+        const newIdx = pageIndexMap.get(wo.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
         page.drawRectangle({
@@ -315,9 +511,33 @@ export const usePdfEditor = () => {
         });
       }
 
+      // Draw annotations
+      for (const annot of annotations) {
+        const newIdx = pageIndexMap.get(annot.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
+        if (!page) continue;
+        const { height } = page.getSize();
+        const ax = annot.x / scale;
+        const ay = height - (annot.y / scale) - (annot.height / scale);
+        const aw = annot.width / scale;
+        const ah = annot.height / scale;
+        const color = parseColor(annot.color);
+
+        if (annot.type === "highlight") {
+          page.drawRectangle({ x: ax, y: ay, width: aw, height: ah, color, opacity: annot.opacity });
+        } else if (annot.type === "underline") {
+          page.drawLine({ start: { x: ax, y: ay }, end: { x: ax + aw, y: ay }, thickness: 2 / scale, color, opacity: annot.opacity });
+        } else if (annot.type === "strikethrough") {
+          page.drawLine({ start: { x: ax, y: ay + ah / 2 }, end: { x: ax + aw, y: ay + ah / 2 }, thickness: 2 / scale, color, opacity: annot.opacity });
+        }
+      }
+
       // Draw shapes
       for (const shape of shapes) {
-        const page = pagesArr[shape.pageIndex];
+        const newIdx = pageIndexMap.get(shape.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
         const sx = shape.x / scale;
@@ -340,7 +560,9 @@ export const usePdfEditor = () => {
       // Draw text blocks
       const blocksToProcess = textBlocks.filter(b => b.isModified || !b.isOriginal);
       for (const block of blocksToProcess) {
-        const page = pagesArr[block.pageIndex];
+        const newIdx = pageIndexMap.get(block.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
         const fontSize = block.fontSize / scale;
@@ -362,7 +584,9 @@ export const usePdfEditor = () => {
 
       // Embed images
       for (const imgBlock of images) {
-        const page = pagesArr[imgBlock.pageIndex];
+        const newIdx = pageIndexMap.get(imgBlock.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
         try {
@@ -400,7 +624,7 @@ export const usePdfEditor = () => {
       setError("Failed to save PDF. " + (err as Error).message);
       setStatus("error");
     }
-  }, [textBlocks, deletedOriginals, whiteouts, images, shapes, scale]);
+  }, [textBlocks, deletedOriginals, whiteouts, images, shapes, annotations, pages, scale]);
 
   const reset = useCallback(() => {
     setStatus("idle");
@@ -411,20 +635,26 @@ export const usePdfEditor = () => {
     setWhiteouts([]);
     setImages([]);
     setShapes([]);
+    setAnnotations([]);
     setCurrentPage(0);
     setActiveTool("select");
     pdfDocRef.current = null;
     pdfBytesRef.current = null;
+    historyRef.current = [];
+    historyPointerRef.current = -1;
   }, []);
 
   return {
-    status, error, pages, textBlocks, whiteouts, images, shapes,
+    status, error, pages, textBlocks, whiteouts, images, shapes, annotations,
     currentPage, scale, activeTool,
     setCurrentPage, setScale: changeScale, setActiveTool,
     loadPdf, updateTextBlock, addTextBlock, deleteTextBlock,
     addWhiteout, deleteWhiteout,
     addImage, updateImage, deleteImage,
     addShape, updateShape, deleteShape,
+    addAnnotation, updateAnnotation, deleteAnnotation,
+    deletePage, restorePage, rotatePage, movePage,
+    undo, redo, canUndo, canRedo,
     savePdf, reset,
   };
 };
