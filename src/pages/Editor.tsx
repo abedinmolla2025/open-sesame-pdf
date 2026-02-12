@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileEdit, AlertCircle, Info } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -12,13 +12,16 @@ const Editor = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const {
-    status, error, pages, textBlocks, whiteouts, images, shapes,
+    status, error, pages, textBlocks, whiteouts, images, shapes, annotations,
     currentPage, scale, activeTool,
     setCurrentPage, setScale, setActiveTool,
     loadPdf, updateTextBlock, addTextBlock, deleteTextBlock,
     addWhiteout, deleteWhiteout,
     addImage, updateImage, deleteImage,
     addShape, updateShape, deleteShape,
+    addAnnotation, updateAnnotation, deleteAnnotation,
+    deletePage, rotatePage,
+    undo, redo, canUndo, canRedo,
     savePdf, reset,
   } = usePdfEditor();
 
@@ -27,8 +30,30 @@ const Editor = () => {
   const handleSave = useCallback(() => { if (selectedFile) savePdf(selectedFile.name); }, [selectedFile, savePdf]);
   const handleZoomIn = () => setScale(Math.min(scale + 0.25, 3));
   const handleZoomOut = () => setScale(Math.max(scale - 0.25, 0.5));
-  const handlePrevPage = () => setCurrentPage(Math.max(currentPage - 1, 0));
-  const handleNextPage = () => setCurrentPage(Math.min(currentPage + 1, pages.length - 1));
+
+  const activePages = pages.filter(p => !p.isDeleted);
+  const handlePrevPage = () => {
+    const idx = activePages.findIndex(p => p === pages[currentPage]);
+    if (idx > 0) setCurrentPage(pages.indexOf(activePages[idx - 1]));
+  };
+  const handleNextPage = () => {
+    const idx = activePages.findIndex(p => p === pages[currentPage]);
+    if (idx < activePages.length - 1) setCurrentPage(pages.indexOf(activePages[idx + 1]));
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [undo, redo, handleSave]);
+
+  const currentPageData = pages[currentPage];
+  const isPageDeleted = currentPageData?.isDeleted;
 
   return (
     <Layout>
@@ -52,7 +77,7 @@ const Editor = () => {
               <span className="gradient-text">PDF Editor</span>
             </h1>
             <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
-              Edit text, add images, draw shapes, and whiteout content in your PDF.
+              Edit text, add images, draw shapes, highlight, and whiteout content in your PDF.
             </p>
           </motion.header>
 
@@ -63,7 +88,7 @@ const Editor = () => {
                 <Alert className="mt-6 border-primary/20 bg-primary/5">
                   <Info className="w-4 h-4 text-primary" />
                   <AlertDescription className="text-muted-foreground text-sm">
-                    <strong className="text-foreground">Tips:</strong> Double-click text to edit. Use toolbar tools for whiteout, shapes, and images.
+                    <strong className="text-foreground">Tips:</strong> Click text to select, double-click to edit. Use Ctrl+Z/Y for undo/redo. Tools: whiteout, shapes, highlight, images.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -92,11 +117,13 @@ const Editor = () => {
           {(status === "ready" || status === "saving") && pages.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
               <EditorToolbar
-                currentPage={currentPage}
-                totalPages={pages.length}
+                currentPage={activePages.findIndex(p => p === pages[currentPage])}
+                totalPages={activePages.length}
                 scale={scale}
                 activeTool={activeTool}
                 isSaving={status === "saving"}
+                canUndo={canUndo}
+                canRedo={canRedo}
                 onPrevPage={handlePrevPage}
                 onNextPage={handleNextPage}
                 onZoomIn={handleZoomIn}
@@ -104,49 +131,71 @@ const Editor = () => {
                 onSetTool={setActiveTool}
                 onSave={handleSave}
                 onReset={handleClear}
+                onUndo={undo}
+                onRedo={redo}
+                onRotatePage={() => rotatePage(pages[currentPage].pageIndex, 90)}
+                onDeletePage={() => deletePage(pages[currentPage].pageIndex)}
               />
 
-              <div className="bg-muted/30 rounded-xl border border-border p-4 overflow-auto max-h-[70vh]">
-                <div className="min-w-fit">
-                  <PdfEditorCanvas
-                    page={pages[currentPage]}
-                    textBlocks={textBlocks}
-                    whiteouts={whiteouts}
-                    images={images}
-                    shapes={shapes}
-                    activeTool={activeTool}
-                    onUpdateTextBlock={updateTextBlock}
-                    onAddTextBlock={addTextBlock}
-                    onDeleteTextBlock={deleteTextBlock}
-                    onAddWhiteout={addWhiteout}
-                    onDeleteWhiteout={deleteWhiteout}
-                    onAddImage={addImage}
-                    onUpdateImage={updateImage}
-                    onDeleteImage={deleteImage}
-                    onAddShape={addShape}
-                    onUpdateShape={updateShape}
-                    onDeleteShape={deleteShape}
-                  />
+              {isPageDeleted ? (
+                <div className="text-center py-20 text-muted-foreground">
+                  <p className="text-lg mb-2">This page has been deleted.</p>
+                  <button onClick={() => { /* restorePage handled via undo */ undo(); }} className="text-primary hover:underline text-sm">Undo to restore</button>
                 </div>
-              </div>
+              ) : currentPageData && (
+                <div className="bg-muted/30 rounded-xl border border-border p-4 overflow-auto max-h-[70vh]">
+                  <div className="min-w-fit" style={{ transform: currentPageData.rotation ? `rotate(${currentPageData.rotation}deg)` : undefined }}>
+                    <PdfEditorCanvas
+                      page={currentPageData}
+                      textBlocks={textBlocks}
+                      whiteouts={whiteouts}
+                      images={images}
+                      shapes={shapes}
+                      annotations={annotations}
+                      activeTool={activeTool}
+                      onUpdateTextBlock={updateTextBlock}
+                      onAddTextBlock={addTextBlock}
+                      onDeleteTextBlock={deleteTextBlock}
+                      onAddWhiteout={addWhiteout}
+                      onDeleteWhiteout={deleteWhiteout}
+                      onAddImage={addImage}
+                      onUpdateImage={updateImage}
+                      onDeleteImage={deleteImage}
+                      onAddShape={addShape}
+                      onUpdateShape={updateShape}
+                      onDeleteShape={deleteShape}
+                      onAddAnnotation={addAnnotation}
+                      onUpdateAnnotation={updateAnnotation}
+                      onDeleteAnnotation={deleteAnnotation}
+                    />
+                  </div>
+                </div>
+              )}
 
+              {/* Page thumbnails */}
               {pages.length > 1 && (
                 <div className="flex gap-2 justify-center mt-6 overflow-x-auto pb-4">
                   {pages.map((page, index) => (
                     <button
-                      key={page.pageIndex}
-                      onClick={() => setCurrentPage(index)}
-                      className={`flex-shrink-0 border-2 rounded-lg overflow-hidden transition-all ${
+                      key={`thumb-${index}`}
+                      onClick={() => !page.isDeleted && setCurrentPage(index)}
+                      className={`flex-shrink-0 border-2 rounded-lg overflow-hidden transition-all relative ${
+                        page.isDeleted ? "opacity-30 grayscale" :
                         currentPage === index ? "border-primary shadow-lg" : "border-border hover:border-primary/50"
                       }`}
                     >
-                      <img src={page.imageUrl} alt={`Page ${index + 1}`} className="h-16 w-auto" />
+                      <img src={page.imageUrl} alt={`Page ${index + 1}`} className="h-16 w-auto" style={{ transform: page.rotation ? `rotate(${page.rotation}deg)` : undefined }} />
+                      {page.isDeleted && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                          <span className="text-[10px] font-bold text-destructive">DELETED</span>
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
               )}
 
-              {(textBlocks.some(b => b.isModified) || whiteouts.length > 0 || images.length > 0 || shapes.length > 0) && (
+              {(textBlocks.some(b => b.isModified) || whiteouts.length > 0 || images.length > 0 || shapes.length > 0 || annotations.length > 0 || pages.some(p => p.isDeleted || p.rotation !== 0)) && (
                 <p className="text-center text-sm text-muted-foreground mt-4">
                   <span className="inline-block w-2 h-2 bg-primary rounded-full mr-2" />
                   You have unsaved changes

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Trash2, Edit3, Check, Move } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TextPropertiesBar } from "@/components/TextPropertiesBar";
-import type { PdfPage, TextBlock, WhiteoutBlock, ImageBlock, ShapeBlock, EditorTool } from "@/hooks/usePdfEditor";
+import type { PdfPage, TextBlock, WhiteoutBlock, ImageBlock, ShapeBlock, AnnotationBlock, EditorTool } from "@/hooks/usePdfEditor";
 
 interface PdfEditorCanvasProps {
   page: PdfPage;
@@ -10,6 +10,7 @@ interface PdfEditorCanvasProps {
   whiteouts: WhiteoutBlock[];
   images: ImageBlock[];
   shapes: ShapeBlock[];
+  annotations: AnnotationBlock[];
   activeTool: EditorTool;
   onUpdateTextBlock: (id: string, updates: Partial<TextBlock>) => void;
   onAddTextBlock: (pageIndex: number, x: number, y: number) => string;
@@ -22,14 +23,18 @@ interface PdfEditorCanvasProps {
   onAddShape: (pageIndex: number, type: any, x: number, y: number, w: number, h: number) => string;
   onUpdateShape: (id: string, updates: Partial<ShapeBlock>) => void;
   onDeleteShape: (id: string) => void;
+  onAddAnnotation: (pageIndex: number, type: "highlight" | "underline" | "strikethrough", x: number, y: number, w: number, h: number) => string;
+  onUpdateAnnotation: (id: string, updates: Partial<AnnotationBlock>) => void;
+  onDeleteAnnotation: (id: string) => void;
 }
 
 export const PdfEditorCanvas = ({
-  page, textBlocks, whiteouts, images, shapes, activeTool,
+  page, textBlocks, whiteouts, images, shapes, annotations, activeTool,
   onUpdateTextBlock, onAddTextBlock, onDeleteTextBlock,
   onAddWhiteout, onDeleteWhiteout,
   onAddImage, onUpdateImage, onDeleteImage,
   onAddShape, onUpdateShape, onDeleteShape,
+  onAddAnnotation, onUpdateAnnotation, onDeleteAnnotation,
 }: PdfEditorCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -43,11 +48,14 @@ export const PdfEditorCanvas = ({
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
+  const isDrawTool = (tool: EditorTool) =>
+    ["whiteout", "rectangle", "circle", "line", "arrow", "highlight", "underline", "strikethrough"].includes(tool);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target !== containerRef.current && !(e.target as HTMLElement).closest('.pdf-bg')) return;
     const pos = getRelPos(e);
 
-    if (activeTool === "whiteout" || activeTool === "rectangle" || activeTool === "circle" || activeTool === "line" || activeTool === "arrow") {
+    if (isDrawTool(activeTool)) {
       setDrawStart(pos);
       setDrawCurrent(pos);
       setIsDrawing(true);
@@ -82,7 +90,9 @@ export const PdfEditorCanvas = ({
     if (w > 5 && h > 5) {
       if (activeTool === "whiteout") {
         onAddWhiteout(page.pageIndex, x, y, w, h);
-      } else if (activeTool === "rectangle" || activeTool === "circle" || activeTool === "line" || activeTool === "arrow") {
+      } else if (activeTool === "highlight" || activeTool === "underline" || activeTool === "strikethrough") {
+        onAddAnnotation(page.pageIndex, activeTool, x, y, w, h);
+      } else if (["rectangle", "circle", "line", "arrow"].includes(activeTool)) {
         onAddShape(page.pageIndex, activeTool, x, y, w, h);
       }
     }
@@ -118,7 +128,6 @@ export const PdfEditorCanvas = ({
     input.click();
   }, [page, onAddImage]);
 
-  // Trigger image upload when image tool selected
   useEffect(() => {
     if (activeTool === "image") {
       handleImageUpload();
@@ -129,6 +138,7 @@ export const PdfEditorCanvas = ({
   const pageWhiteouts = whiteouts.filter(w => w.pageIndex === page.pageIndex);
   const pageImages = images.filter(i => i.pageIndex === page.pageIndex);
   const pageShapes = shapes.filter(s => s.pageIndex === page.pageIndex);
+  const pageAnnotations = annotations.filter(a => a.pageIndex === page.pageIndex);
 
   const drawRect = drawStart && drawCurrent && isDrawing ? {
     x: Math.min(drawStart.x, drawCurrent.x),
@@ -157,6 +167,49 @@ export const PdfEditorCanvas = ({
         className="absolute inset-0 w-full h-full pointer-events-none select-none pdf-bg"
         draggable={false}
       />
+
+      {/* Annotations (highlight, underline, strikethrough) */}
+      {pageAnnotations.map(annot => (
+        <div
+          key={annot.id}
+          className={cn("absolute", selectedId === annot.id ? "z-10" : "z-0")}
+          style={{ left: annot.x, top: annot.y, width: annot.width, height: annot.height }}
+          onClick={(e) => { e.stopPropagation(); setSelectedId(annot.id); }}
+        >
+          {annot.type === "highlight" && (
+            <div className="w-full h-full rounded-sm" style={{ backgroundColor: annot.color, opacity: annot.opacity }} />
+          )}
+          {annot.type === "underline" && (
+            <div className="w-full h-full relative">
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] rounded" style={{ backgroundColor: annot.color, opacity: annot.opacity }} />
+            </div>
+          )}
+          {annot.type === "strikethrough" && (
+            <div className="w-full h-full relative">
+              <div className="absolute top-1/2 left-0 right-0 h-[2px] rounded" style={{ backgroundColor: annot.color, opacity: annot.opacity }} />
+            </div>
+          )}
+          {selectedId === annot.id && (
+            <>
+              <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />
+              <div className="absolute -top-9 right-0 flex gap-1 z-20" onMouseDown={e => e.stopPropagation()}>
+                <input
+                  type="color" value={annot.color}
+                  onChange={(e) => onUpdateAnnotation(annot.id, { color: e.target.value })}
+                  className="w-7 h-7 rounded cursor-pointer border border-border bg-card"
+                  onClick={e => e.stopPropagation()}
+                />
+                <button
+                  className="p-1.5 bg-destructive text-destructive-foreground rounded shadow"
+                  onClick={(e) => { e.stopPropagation(); onDeleteAnnotation(annot.id); setSelectedId(null); }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
 
       {/* Whiteouts */}
       {pageWhiteouts.map(wo => (
@@ -200,10 +253,8 @@ export const PdfEditorCanvas = ({
               onMouseDown={(e) => {
                 e.stopPropagation();
                 const startX = e.clientX;
-                const startY = e.clientY;
                 const startW = img.width;
-                const startH = img.height;
-                const ratio = startW / startH;
+                const ratio = img.width / img.height;
                 const onMove = (ev: MouseEvent) => {
                   const dw = ev.clientX - startX;
                   const newW = Math.max(30, startW + dw);
@@ -289,7 +340,11 @@ export const PdfEditorCanvas = ({
         <div
           className={cn(
             "absolute pointer-events-none border-2 border-dashed",
-            activeTool === "whiteout" ? "bg-white/80 border-muted-foreground/30" : "border-primary/60"
+            activeTool === "whiteout" ? "bg-white/80 border-muted-foreground/30" :
+            activeTool === "highlight" ? "bg-yellow-300/40 border-yellow-400" :
+            activeTool === "underline" ? "border-blue-400" :
+            activeTool === "strikethrough" ? "border-red-400" :
+            "border-primary/60"
           )}
           style={{ left: drawRect.x, top: drawRect.y, width: drawRect.w, height: drawRect.h }}
         />
@@ -345,7 +400,7 @@ const DraggableElement = ({ children, x, y, isSelected, onSelect, onMove, onDele
   );
 };
 
-// Text block editor - Sejda-style: click to select, double-click to edit, delete any text
+// Text block editor
 const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
   block: TextBlock; isSelected: boolean;
   onSelect: () => void;
@@ -366,7 +421,6 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
   const handleSaveEdit = () => {
     setIsEditing(false);
     if (localText.trim() === "") {
-      // Empty text = delete the block
       onDelete();
       return;
     }
@@ -419,7 +473,6 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
     >
       {isSelected && <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />}
 
-      {/* Properties bar + actions - show for ALL selected text (original + new) */}
       {isSelected && !isEditing && (
         <div className="absolute -top-12 left-0 z-20 flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()}>
           <TextPropertiesBar block={block} onUpdate={onUpdate} />
@@ -472,7 +525,6 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
           className={cn(
             "whitespace-nowrap cursor-pointer rounded px-0.5 transition-all",
             isSelected ? "bg-primary/15" : "hover:bg-blue-100/60",
-            // Original unmodified text: invisible until hovered/selected (PDF image already shows it)
             block.isOriginal && !block.isModified && !isSelected && "text-transparent hover:text-transparent"
           )}
           style={{
