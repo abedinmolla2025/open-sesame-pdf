@@ -590,12 +590,14 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       ) : (
         <span
           className={cn(
-            "whitespace-nowrap cursor-text rounded px-0.5 transition-all",
-            isSelected ? "bg-primary/15" : "hover:bg-primary/10",
+            "whitespace-nowrap rounded px-0.5 transition-all",
+            block.isOriginal && !block.isModified
+              ? isSelected ? "bg-primary/20 cursor-text" : "cursor-text"
+              : isSelected ? "bg-primary/15 cursor-text" : "hover:bg-primary/10 cursor-text",
           )}
           style={{
             fontSize: block.fontSize, fontFamily: block.fontFamily,
-            color: block.color,
+            color: block.isOriginal && !block.isModified ? "transparent" : block.color,
             fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
             lineHeight: 1.2,
           }}
