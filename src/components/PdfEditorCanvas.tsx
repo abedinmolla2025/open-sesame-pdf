@@ -345,7 +345,7 @@ const DraggableElement = ({ children, x, y, isSelected, onSelect, onMove, onDele
   );
 };
 
-// Text block editor
+// Text block editor - Sejda-style: click to select, double-click to edit, delete any text
 const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
   block: TextBlock; isSelected: boolean;
   onSelect: () => void;
@@ -356,6 +356,7 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
   const [localText, setLocalText] = useState(block.text);
   const inputRef = useRef<HTMLInputElement>(null);
   const elRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef(false);
 
   useEffect(() => { setLocalText(block.text); }, [block.text]);
   useEffect(() => {
@@ -364,6 +365,11 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
 
   const handleSaveEdit = () => {
     setIsEditing(false);
+    if (localText.trim() === "") {
+      // Empty text = delete the block
+      onDelete();
+      return;
+    }
     onUpdate({ text: localText, isEditing: false });
   };
 
@@ -371,9 +377,19 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
     e.stopPropagation();
     onSelect();
     if (isEditing) return;
-    const startX = e.clientX - block.x;
-    const startY = e.clientY - block.y;
-    const onMouseMove = (ev: MouseEvent) => onUpdate({ x: ev.clientX - startX, y: ev.clientY - startY });
+    dragRef.current = false;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origX = block.x;
+    const origY = block.y;
+    const onMouseMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        dragRef.current = true;
+        onUpdate({ x: origX + dx, y: origY + dy });
+      }
+    };
     const onMouseUp = () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
@@ -382,34 +398,45 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
     window.addEventListener("mouseup", onMouseUp);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    onUpdate({ isEditing: true });
+  };
+
   return (
     <div
       ref={elRef}
-      className={cn("absolute group", isSelected && "z-10", block.isModified && !isSelected && "ring-1 ring-primary/20")}
-      style={{ left: block.x, top: block.y, minWidth: Math.max(block.width, 50) }}
+      className={cn(
+        "absolute group",
+        isSelected && "z-10",
+        !isSelected && !isEditing && "hover:outline hover:outline-2 hover:outline-primary/40 hover:outline-offset-1",
+        block.isModified && !isSelected && "ring-1 ring-primary/20"
+      )}
+      style={{ left: block.x, top: block.y, minWidth: Math.max(block.width, 30) }}
       onMouseDown={handleMouseDown}
-      onDoubleClick={(e) => { e.stopPropagation(); setIsEditing(true); onUpdate({ isEditing: true }); }}
+      onDoubleClick={handleDoubleClick}
     >
       {isSelected && <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />}
 
-      {/* Properties bar */}
+      {/* Properties bar + actions - show for ALL selected text (original + new) */}
       {isSelected && !isEditing && (
-        <div className="absolute -top-12 left-0 z-20 flex items-center gap-2">
+        <div className="absolute -top-12 left-0 z-20 flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()}>
           <TextPropertiesBar block={block} onUpdate={onUpdate} />
           <button
             className="p-1.5 bg-card border border-border rounded-lg shadow-lg hover:bg-muted"
-            onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+            title="Edit text"
+            onClick={(e) => { e.stopPropagation(); setIsEditing(true); onUpdate({ isEditing: true }); }}
           >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
-          {!block.isOriginal && (
-            <button
-              className="p-1.5 bg-destructive text-destructive-foreground rounded-lg shadow-lg"
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <button
+            className="p-1.5 bg-destructive text-destructive-foreground rounded-lg shadow-lg hover:bg-destructive/90"
+            title="Delete text"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -443,8 +470,8 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       ) : (
         <span
           className={cn(
-            "whitespace-nowrap cursor-pointer hover:bg-primary/10 rounded px-0.5 transition-colors",
-            isSelected && "bg-primary/10"
+            "whitespace-nowrap cursor-pointer rounded px-0.5 transition-colors",
+            isSelected ? "bg-primary/15" : "hover:bg-primary/10"
           )}
           style={{
             fontSize: block.fontSize, fontFamily: block.fontFamily, color: block.color,

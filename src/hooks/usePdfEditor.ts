@@ -68,6 +68,7 @@ export const usePdfEditor = () => {
   const [error, setError] = useState<string | null>(null);
   const [pages, setPages] = useState<PdfPage[]>([]);
   const [textBlocks, setTextBlocks] = useState<TextBlock[]>([]);
+  const [deletedOriginals, setDeletedOriginals] = useState<TextBlock[]>([]);
   const [whiteouts, setWhiteouts] = useState<WhiteoutBlock[]>([]);
   const [images, setImages] = useState<ImageBlock[]>([]);
   const [shapes, setShapes] = useState<ShapeBlock[]>([]);
@@ -134,6 +135,7 @@ export const usePdfEditor = () => {
     setError(null);
     setPages([]);
     setTextBlocks([]);
+    setDeletedOriginals([]);
     setWhiteouts([]);
     setImages([]);
     setShapes([]);
@@ -216,7 +218,13 @@ export const usePdfEditor = () => {
   }, []);
 
   const deleteTextBlock = useCallback((id: string) => {
-    setTextBlocks(prev => prev.filter(b => b.id !== id));
+    setTextBlocks(prev => {
+      const block = prev.find(b => b.id === id);
+      if (block && block.isOriginal) {
+        setDeletedOriginals(old => [...old, block]);
+      }
+      return prev.filter(b => b.id !== id);
+    });
   }, []);
 
   // Whiteout
@@ -279,6 +287,21 @@ export const usePdfEditor = () => {
         const h = hex.replace("#", "");
         return rgb(parseInt(h.substring(0, 2), 16) / 255, parseInt(h.substring(2, 4), 16) / 255, parseInt(h.substring(4, 6), 16) / 255);
       };
+
+      // Whiteout deleted original text blocks
+      for (const deleted of deletedOriginals) {
+        const page = pagesArr[deleted.pageIndex];
+        if (!page) continue;
+        const { height } = page.getSize();
+        const fontSize = deleted.fontSize / scale;
+        page.drawRectangle({
+          x: (deleted.x / scale) - 2,
+          y: height - (deleted.y / scale) - fontSize - 2,
+          width: (deleted.width / scale) + 4,
+          height: fontSize + 4,
+          color: rgb(1, 1, 1),
+        });
+      }
 
       // Draw whiteouts first
       for (const wo of whiteouts) {
@@ -377,13 +400,14 @@ export const usePdfEditor = () => {
       setError("Failed to save PDF. " + (err as Error).message);
       setStatus("error");
     }
-  }, [textBlocks, whiteouts, images, shapes, scale]);
+  }, [textBlocks, deletedOriginals, whiteouts, images, shapes, scale]);
 
   const reset = useCallback(() => {
     setStatus("idle");
     setError(null);
     setPages([]);
     setTextBlocks([]);
+    setDeletedOriginals([]);
     setWhiteouts([]);
     setImages([]);
     setShapes([]);
