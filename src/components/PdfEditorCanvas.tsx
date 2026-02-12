@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Trash2, Edit3, Check, Move } from "lucide-react";
+import { Trash2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PdfPage, TextBlock, WhiteoutBlock, ImageBlock, ShapeBlock, AnnotationBlock, FreehandPath, EditorTool } from "@/hooks/usePdfEditor";
 
@@ -524,15 +524,14 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
     const onMouseUp = () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      // If it was a simple click (no drag), go directly into edit mode
+      if (!dragRef.current) {
+        setIsEditing(true);
+        onUpdate({ isEditing: true, isModified: true });
+      }
     };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditing(true);
-    onUpdate({ isEditing: true });
   };
 
   return (
@@ -546,19 +545,11 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       )}
       style={{ left: block.x, top: block.y, minWidth: Math.max(block.width, 30) }}
       onMouseDown={handleMouseDown}
-      onDoubleClick={handleDoubleClick}
     >
       {isSelected && <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />}
 
       {isSelected && !isEditing && (
         <div className="absolute -top-2 -right-2 z-20 flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
-          <button
-            className="p-1 bg-card border border-border rounded shadow-lg hover:bg-muted"
-            title="Edit text"
-            onClick={(e) => { e.stopPropagation(); setIsEditing(true); onUpdate({ isEditing: true }); }}
-          >
-            <Edit3 className="w-3 h-3" />
-          </button>
           <button
             className="p-1 bg-destructive text-destructive-foreground rounded shadow-lg hover:bg-destructive/90"
             title="Delete text"
@@ -599,13 +590,12 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       ) : (
         <span
           className={cn(
-            "whitespace-nowrap cursor-pointer rounded px-0.5 transition-all",
-            isSelected ? "bg-primary/15" : "hover:bg-blue-100/60",
-            block.isOriginal && !block.isModified && !isSelected && "text-transparent hover:text-transparent"
+            "whitespace-nowrap cursor-text rounded px-0.5 transition-all",
+            isSelected ? "bg-primary/15" : "hover:bg-primary/10",
           )}
           style={{
             fontSize: block.fontSize, fontFamily: block.fontFamily,
-            color: (block.isOriginal && !block.isModified && !isSelected) ? "transparent" : block.color,
+            color: block.color,
             fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
             lineHeight: 1.2,
           }}
