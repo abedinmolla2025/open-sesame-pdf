@@ -3,7 +3,7 @@ import {
   ZoomIn, ZoomOut, Type, Save, ChevronLeft, ChevronRight, RotateCcw,
   MousePointer2, Eraser, Image, Square, Circle, Minus, ArrowRight,
   Highlighter, Underline, Strikethrough, Undo2, Redo2, RotateCw,
-  Trash2,
+  Trash2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ const toolGroups: { tool: EditorTool; icon: React.ElementType; label: string; gr
   { tool: "text", icon: Type, label: "Add Text (T)", group: "basic" },
   { tool: "whiteout", icon: Eraser, label: "Whiteout (W)", group: "basic" },
   { tool: "image", icon: Image, label: "Insert Image (I)", group: "basic" },
+  { tool: "pen", icon: Pencil, label: "Freehand Pen (P)", group: "basic" },
   { tool: "highlight", icon: Highlighter, label: "Highlight", group: "annotate" },
   { tool: "underline", icon: Underline, label: "Underline", group: "annotate" },
   { tool: "strikethrough", icon: Strikethrough, label: "Strikethrough", group: "annotate" },

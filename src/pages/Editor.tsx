@@ -12,7 +12,7 @@ const Editor = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const {
-    status, error, pages, textBlocks, whiteouts, images, shapes, annotations,
+    status, error, pages, textBlocks, whiteouts, images, shapes, annotations, freehandPaths,
     currentPage, scale, activeTool,
     setCurrentPage, setScale, setActiveTool,
     loadPdf, updateTextBlock, addTextBlock, deleteTextBlock,
@@ -20,6 +20,7 @@ const Editor = () => {
     addImage, updateImage, deleteImage,
     addShape, updateShape, deleteShape,
     addAnnotation, updateAnnotation, deleteAnnotation,
+    addFreehandPath, updateFreehandPath, deleteFreehandPath,
     deletePage, rotatePage,
     undo, redo, canUndo, canRedo,
     savePdf, reset,
@@ -152,6 +153,7 @@ const Editor = () => {
                       images={images}
                       shapes={shapes}
                       annotations={annotations}
+                      freehandPaths={freehandPaths}
                       activeTool={activeTool}
                       onUpdateTextBlock={updateTextBlock}
                       onAddTextBlock={addTextBlock}
@@ -167,6 +169,9 @@ const Editor = () => {
                       onAddAnnotation={addAnnotation}
                       onUpdateAnnotation={updateAnnotation}
                       onDeleteAnnotation={deleteAnnotation}
+                      onAddFreehandPath={addFreehandPath}
+                      onUpdateFreehandPath={updateFreehandPath}
+                      onDeleteFreehandPath={deleteFreehandPath}
                     />
                   </div>
                 </div>
@@ -195,7 +200,7 @@ const Editor = () => {
                 </div>
               )}
 
-              {(textBlocks.some(b => b.isModified) || whiteouts.length > 0 || images.length > 0 || shapes.length > 0 || annotations.length > 0 || pages.some(p => p.isDeleted || p.rotation !== 0)) && (
+              {(textBlocks.some(b => b.isModified) || whiteouts.length > 0 || images.length > 0 || shapes.length > 0 || annotations.length > 0 || freehandPaths.length > 0 || pages.some(p => p.isDeleted || p.rotation !== 0)) && (
                 <p className="text-center text-sm text-muted-foreground mt-4">
                   <span className="inline-block w-2 h-2 bg-primary rounded-full mr-2" />
                   You have unsaved changes
