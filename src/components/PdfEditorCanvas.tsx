@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Trash2, Edit3, Check, Move } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TextPropertiesBar } from "@/components/TextPropertiesBar";
 import type { PdfPage, TextBlock, WhiteoutBlock, ImageBlock, ShapeBlock, AnnotationBlock, FreehandPath, EditorTool } from "@/hooks/usePdfEditor";
 
 interface PdfEditorCanvasProps {
@@ -552,21 +551,20 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       {isSelected && <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />}
 
       {isSelected && !isEditing && (
-        <div className="absolute -top-12 left-0 z-20 flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()}>
-          <TextPropertiesBar block={block} onUpdate={onUpdate} />
+        <div className="absolute -top-2 -right-2 z-20 flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
           <button
-            className="p-1.5 bg-card border border-border rounded-lg shadow-lg hover:bg-muted"
+            className="p-1 bg-card border border-border rounded shadow-lg hover:bg-muted"
             title="Edit text"
             onClick={(e) => { e.stopPropagation(); setIsEditing(true); onUpdate({ isEditing: true }); }}
           >
-            <Edit3 className="w-3.5 h-3.5" />
+            <Edit3 className="w-3 h-3" />
           </button>
           <button
-            className="p-1.5 bg-destructive text-destructive-foreground rounded-lg shadow-lg hover:bg-destructive/90"
+            className="p-1 bg-destructive text-destructive-foreground rounded shadow-lg hover:bg-destructive/90"
             title="Delete text"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3 h-3" />
           </button>
         </div>
       )}
