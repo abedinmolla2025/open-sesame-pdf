@@ -534,18 +534,21 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
     window.addEventListener("mouseup", onMouseUp);
   };
 
-  return (
-    <div
-      ref={elRef}
-      className={cn(
-        "absolute group",
-        isSelected && "z-10",
-        !isSelected && !isEditing && "hover:outline hover:outline-2 hover:outline-primary/40 hover:outline-offset-1",
-        block.isModified && !isSelected && "ring-1 ring-primary/20"
-      )}
-      style={{ left: block.x, top: block.y, minWidth: Math.max(block.width, 30) }}
-      onMouseDown={handleMouseDown}
-    >
+    return (
+      <div
+        ref={elRef}
+        className={cn(
+          "absolute group",
+          isSelected && "z-10",
+          !isSelected && !isEditing && "hover:outline hover:outline-2 hover:outline-primary/40 hover:outline-offset-1",
+          block.isModified && !isSelected && "ring-1 ring-primary/20"
+        )}
+        style={{
+          left: block.x, top: block.y, minWidth: Math.max(block.width, 30),
+          backgroundColor: block.isOriginal && block.isModified ? "white" : undefined,
+        }}
+        onMouseDown={handleMouseDown}
+      >
       {isSelected && <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />}
 
       {isSelected && !isEditing && (
