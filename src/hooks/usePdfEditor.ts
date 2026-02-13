@@ -577,12 +577,20 @@ export const usePdfEditor = () => {
         if (!page) continue;
         const { height } = page.getSize();
         const fontSize = deleted.fontSize / scale;
+        const origX = (deleted.x / scale);
+        const origY = height - (deleted.y / scale) - fontSize;
+        let font = helveticaFont;
+        if (deleted.bold && deleted.italic) font = helveticaBoldOblique;
+        else if (deleted.bold) font = helveticaBold;
+        else if (deleted.italic) font = helveticaOblique;
+        const textWidth = font.widthOfTextAtSize(deleted.originalText, fontSize);
         page.drawRectangle({
-          x: (deleted.x / scale) - 2,
-          y: height - (deleted.y / scale) - fontSize - 2,
-          width: (deleted.width / scale) + 4,
-          height: fontSize + 4,
+          x: origX,
+          y: origY,
+          width: textWidth + 1,
+          height: fontSize + 1,
           color: rgb(1, 1, 1),
+          borderWidth: 0,
         });
       }
 
@@ -683,8 +691,20 @@ export const usePdfEditor = () => {
         else if (block.italic) font = helveticaOblique;
 
         if (block.isOriginal && block.isModified) {
-          const textWidth = font.widthOfTextAtSize(block.originalText, fontSize);
-          page.drawRectangle({ x: x - 2, y: y - 2, width: textWidth + 4, height: fontSize + 4, color: rgb(1, 1, 1) });
+          // Cover original text precisely - no padding to keep it invisible
+          const origWidth = font.widthOfTextAtSize(block.originalText, fontSize);
+          const newWidth = font.widthOfTextAtSize(block.text, fontSize);
+          const coverWidth = Math.max(origWidth, newWidth);
+          // Use font metrics for precise height: descender to ascender
+          const descent = font.heightAtSize(fontSize) * 0.2; // approximate descender
+          page.drawRectangle({
+            x: x,
+            y: y - descent,
+            width: coverWidth + 1,
+            height: fontSize + descent + 1,
+            color: rgb(1, 1, 1),
+            borderWidth: 0,
+          });
         }
 
         page.drawText(block.text, { x, y, size: fontSize, font, color: parseColor(block.color) });
