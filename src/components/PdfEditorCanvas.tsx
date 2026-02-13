@@ -501,7 +501,8 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       onDelete();
       return;
     }
-    onUpdate({ text: localText, isEditing: false });
+    // Preserve original position — only update text, never change x/y
+    onUpdate({ text: localText, isEditing: false, isModified: true });
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -543,7 +544,10 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
           !isSelected && !isEditing && block.isOriginal && !block.isModified && "hover:outline hover:outline-2 hover:outline-primary/40 hover:outline-offset-1",
         )}
         style={{
-          left: block.x, top: block.y, minWidth: Math.max(block.width, 30),
+          left: block.x, top: block.y, 
+          width: block.width || undefined,
+          minWidth: Math.max(block.width, 30),
+          height: block.height || undefined,
           backgroundColor: block.isOriginal && block.isModified ? "white" : undefined,
         }}
         onMouseDown={handleMouseDown}
@@ -563,7 +567,7 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       )}
 
       {isEditing ? (
-        <div className="flex items-center gap-1">
+        <div>
           <input
             ref={inputRef}
             type="text" value={localText}
@@ -578,17 +582,11 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
             style={{
               fontSize: block.fontSize, fontFamily: block.fontFamily, color: block.color,
               fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
-              minWidth: "80px", width: `${Math.max(localText.length + 2, 10)}ch`,
+              width: "100%", height: block.height || "auto",
               lineHeight: 1.2, padding: 0, margin: 0, borderRadius: 0,
             }}
             onClick={(e) => e.stopPropagation()}
           />
-          <button
-            className="p-1 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-            onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
-          >
-            <Check className="w-4 h-4" />
-          </button>
         </div>
       ) : (
         <span
