@@ -605,8 +605,8 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
             // For modified original text: render with transparent bg so the PDF image beneath is covered
             // then use a tight white background that precisely matches text bounds
             ...(block.isOriginal && block.isModified ? {
-              backgroundColor: "white",
-              boxShadow: "0 0 1px 0.5px white",
+              backgroundColor: block.bgColor || "white",
+              boxShadow: `0 0 1px 0.5px ${block.bgColor || "white"}`,
               borderRadius: 0,
               padding: "0 0.5px",
               margin: "0 -0.5px",
