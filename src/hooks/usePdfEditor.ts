@@ -1,5 +1,40 @@
 import { useState, useCallback, useRef } from "react";
 
+// Detect script from text and return appropriate Noto Sans font family
+const resolveMultilingualFont = (text: string, pdfFontName: string): string => {
+  // Check for specific Unicode script ranges
+  for (const char of text) {
+    const code = char.codePointAt(0) || 0;
+    // Bengali (বাংলা)
+    if (code >= 0x0980 && code <= 0x09FF) return "'Noto Sans Bengali', 'Noto Sans', sans-serif";
+    // Arabic (العربية) + Urdu, Persian
+    if (code >= 0x0600 && code <= 0x06FF || code >= 0xFB50 && code <= 0xFDFF || code >= 0xFE70 && code <= 0xFEFF)
+      return "'Noto Sans Arabic', 'Noto Sans', sans-serif";
+    // Devanagari (हिन्दी, मराठी, संस्कृत)
+    if (code >= 0x0900 && code <= 0x097F) return "'Noto Sans Devanagari', 'Noto Sans', sans-serif";
+    // Japanese (Hiragana, Katakana, CJK)
+    if ((code >= 0x3040 && code <= 0x309F) || (code >= 0x30A0 && code <= 0x30FF) || (code >= 0x4E00 && code <= 0x9FFF))
+      return "'Noto Sans JP', 'Noto Sans', sans-serif";
+    // Korean (Hangul)
+    if ((code >= 0xAC00 && code <= 0xD7AF) || (code >= 0x1100 && code <= 0x11FF))
+      return "'Noto Sans KR', 'Noto Sans', sans-serif";
+    // Chinese Simplified (beyond CJK already caught by JP)
+    if (code >= 0x4E00 && code <= 0x9FFF) return "'Noto Sans SC', 'Noto Sans', sans-serif";
+    // Thai
+    if (code >= 0x0E00 && code <= 0x0E7F) return "'Noto Sans Thai', 'Noto Sans', sans-serif";
+    // Tamil
+    if (code >= 0x0B80 && code <= 0x0BFF) return "'Noto Sans', sans-serif";
+    // Telugu
+    if (code >= 0x0C00 && code <= 0x0C7F) return "'Noto Sans', sans-serif";
+    // Gujarati
+    if (code >= 0x0A80 && code <= 0x0AFF) return "'Noto Sans', sans-serif";
+    // Gurmukhi (Punjabi)
+    if (code >= 0x0A00 && code <= 0x0A7F) return "'Noto Sans', sans-serif";
+  }
+  // Latin/default — use the PDF's original font with Noto Sans fallback
+  return `${pdfFontName}, 'Noto Sans', sans-serif`;
+};
+
 export interface TextBlock {
   id: string;
   text: string;
@@ -220,6 +255,9 @@ export const usePdfEditor = () => {
             }
           }
 
+          // Detect script/language from text content for proper font fallback
+          const resolvedFontFamily = resolveMultilingualFont(item.str, item.fontName || "Helvetica");
+
           extractedTextBlocks.push({
             id: `text-${i}-${index}`,
             text: item.str,
@@ -228,7 +266,7 @@ export const usePdfEditor = () => {
             width: item.width * renderScale,
             height: (item.height || 12) * renderScale,
             fontSize: Math.round((item.height || 12) * renderScale),
-            fontFamily: item.fontName || "Helvetica",
+            fontFamily: resolvedFontFamily,
             color: textColor,
             bold: isBold,
             italic: isItalic,
