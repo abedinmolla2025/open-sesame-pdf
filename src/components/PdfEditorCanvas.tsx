@@ -540,8 +540,7 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
         className={cn(
           "absolute group",
           isSelected && "z-10",
-          !isSelected && !isEditing && "hover:outline hover:outline-2 hover:outline-primary/40 hover:outline-offset-1",
-          block.isModified && !isSelected && "ring-1 ring-primary/20"
+          !isSelected && !isEditing && block.isOriginal && !block.isModified && "hover:outline hover:outline-2 hover:outline-primary/40 hover:outline-offset-1",
         )}
         style={{
           left: block.x, top: block.y, minWidth: Math.max(block.width, 30),
@@ -575,11 +574,12 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
               if (e.key === "Enter") handleSaveEdit();
               if (e.key === "Escape") { setLocalText(block.text); setIsEditing(false); onUpdate({ isEditing: false }); }
             }}
-            className="bg-white/90 border border-primary rounded px-1 outline-none"
+            className="border-none outline-none bg-white"
             style={{
               fontSize: block.fontSize, fontFamily: block.fontFamily, color: block.color,
               fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
               minWidth: "80px", width: `${Math.max(localText.length + 2, 10)}ch`,
+              lineHeight: 1.2, padding: 0, margin: 0, borderRadius: 0,
             }}
             onClick={(e) => e.stopPropagation()}
           />
@@ -592,12 +592,7 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
         </div>
       ) : (
         <span
-          className={cn(
-            "whitespace-nowrap rounded px-0.5 transition-all",
-            block.isOriginal && !block.isModified
-              ? isSelected ? "bg-primary/20 cursor-text" : "cursor-text"
-              : isSelected ? "bg-primary/15 cursor-text" : "hover:bg-primary/10 cursor-text",
-          )}
+          className="whitespace-nowrap cursor-text"
           style={{
             fontSize: block.fontSize, fontFamily: block.fontFamily,
             color: block.isOriginal && !block.isModified ? "transparent" : block.color,
