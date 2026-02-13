@@ -1,4 +1,7 @@
 import { useState, useCallback, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 // Detect script from text and return appropriate Noto Sans font family
 const resolveMultilingualFont = (text: string, pdfFontName: string): string => {
@@ -302,10 +305,7 @@ export const usePdfEditor = () => {
       // Store a copy of the bytes for pdf-lib (save), since pdfjs may transfer the buffer
       pdfBytesRef.current = new Uint8Array(arrayBuffer.slice(0));
 
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-
-      const pdfDoc = await (pdfjsLib.getDocument({ data: arrayBuffer })).promise;
+      const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       pdfDocRef.current = pdfDoc;
 
       const { loadedPages, extractedTextBlocks } = await renderPages(pdfDoc, scale);
