@@ -59,6 +59,12 @@ export interface TextBlock {
   originalFontName: string;
   letterSpacing: number;
   transform: number[] | null; // original transform matrix [a,b,c,d,e,f]
+  // PDF coordinate system values (unscaled)
+  pdfX: number;
+  pdfY: number;
+  pdfFontSize: number;
+  pdfWidth: number;
+  bgColor: string; // sampled background color at text position
 }
 
 export interface WhiteoutBlock {
@@ -239,21 +245,36 @@ export const usePdfEditor = () => {
       });
 
       const textContent = await page.getTextContent();
+      // Get canvas image data for background color sampling
+      const imgData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const sampleBgColor = (sx: number, sy: number, sh: number): string => {
+        // Sample a pixel just to the left/above the text to get background color
+        const px = Math.max(0, Math.min(Math.round(sx), canvas.width - 1));
+        const py = Math.max(0, Math.min(Math.round(sy + sh * 0.5), canvas.height - 1));
+        const idx = (py * canvas.width + px) * 4;
+        const r = imgData.data[idx];
+        const g = imgData.data[idx + 1];
+        const b = imgData.data[idx + 2];
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      };
+
       textContent.items.forEach((item: any, index: number) => {
         if (item.str && item.str.trim()) {
           const tx = item.transform;
-          const x = tx[4] * renderScale;
-          // Use transform-based font size (more accurate than item.height)
-          const txFontSize = Math.abs(tx[3]) || Math.abs(tx[0]) || item.height || 12;
-          const scaledFontSize = txFontSize * renderScale;
-          const y = viewport.height - (tx[5] * renderScale) - scaledFontSize;
+          // PDF coordinate values (unscaled)
+          const pdfFontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) || Math.abs(tx[3]) || item.height || 12;
+          const pdfX = tx[4];
+          const pdfY = tx[5];
+          const pdfWidth = item.width;
 
-          // Detect bold/italic from font name
+          const scaledFontSize = pdfFontSize * renderScale;
+          const x = pdfX * renderScale;
+          const y = viewport.height - (pdfY * renderScale) - scaledFontSize;
+
           const fontName = (item.fontName || "").toLowerCase();
           const isBold = fontName.includes("bold") || fontName.includes("black") || fontName.includes("heavy");
           const isItalic = fontName.includes("italic") || fontName.includes("oblique");
 
-          // Extract color from the text style if available
           let textColor = "#000000";
           if (item.color) {
             const c = item.color;
@@ -265,15 +286,15 @@ export const usePdfEditor = () => {
             }
           }
 
-          // Detect script/language from text content for proper font fallback
           const resolvedFontFamily = resolveMultilingualFont(item.str, item.fontName || "Helvetica");
+          const bgColor = sampleBgColor(x, y, scaledFontSize);
 
           extractedTextBlocks.push({
             id: `text-${i}-${index}`,
             text: item.str,
             originalText: item.str,
             x, y,
-            width: item.width * renderScale,
+            width: pdfWidth * renderScale,
             height: scaledFontSize,
             fontSize: Math.round(scaledFontSize),
             fontFamily: resolvedFontFamily,
@@ -287,6 +308,8 @@ export const usePdfEditor = () => {
             originalFontName: item.fontName || "Helvetica",
             letterSpacing: 0,
             transform: tx ? [...tx] : null,
+            pdfX, pdfY, pdfFontSize, pdfWidth,
+            bgColor,
           });
         }
       });
@@ -414,6 +437,7 @@ export const usePdfEditor = () => {
       color: "#000000", bold: false, italic: false,
       pageIndex, isEditing: true, isOriginal: false, isModified: true,
       originalFontName: "Helvetica", letterSpacing: 0, transform: null,
+      pdfX: 0, pdfY: 0, pdfFontSize: 18, pdfWidth: 150, bgColor: "#ffffff",
     };
     setTextBlocks(prev => [...prev, newBlock]);
     return newBlock.id;
@@ -557,12 +581,62 @@ export const usePdfEditor = () => {
     if (!pdfBytesRef.current) return;
     setStatus("saving");
     try {
-      const { PDFDocument, rgb, StandardFonts, degrees } = await import("pdf-lib");
+      const pdfLib = await import("pdf-lib");
+      const { PDFDocument, rgb, StandardFonts, degrees, PDFName } = pdfLib;
       const pdfDoc = await PDFDocument.load(pdfBytesRef.current, { ignoreEncryption: true, updateMetadata: false });
+
+      // --- Try to extract and cache embedded fonts from the original PDF ---
+      const embeddedFontCache = new Map<string, any>();
+      const tryExtractFont = async (fontName: string, pageIdx: number) => {
+        if (embeddedFontCache.has(fontName)) return embeddedFontCache.get(fontName);
+        try {
+          const pg = pdfDoc.getPages()[pageIdx];
+          if (!pg) return null;
+          const resources = (pg.node as any).get?.(PDFName.of('Resources'));
+          if (!resources) return null;
+          const fontDictRef = resources.lookup?.(PDFName.of('Font'));
+          if (!fontDictRef || !fontDictRef.entries) return null;
+
+          const entries = fontDictRef.entries();
+          for (const [key] of entries) {
+            const fontObj = fontDictRef.lookup?.(key);
+            if (!fontObj || !fontObj.get) continue;
+            const baseFont = fontObj.get(PDFName.of('BaseFont'));
+            if (baseFont && baseFont.toString().includes(fontName.replace(/[^a-zA-Z]/g, ''))) {
+              const descriptor = fontObj.lookup?.(PDFName.of('FontDescriptor'));
+              if (!descriptor || !descriptor.lookup) continue;
+              for (const ff of ['FontFile2', 'FontFile', 'FontFile3']) {
+                const fontFileRef = descriptor.lookup(PDFName.of(ff));
+                if (fontFileRef && fontFileRef.getContents) {
+                  const fontBytes = fontFileRef.getContents();
+                  try {
+                    const embedded = await pdfDoc.embedFont(fontBytes, { subset: false });
+                    embeddedFontCache.set(fontName, embedded);
+                    return embedded;
+                  } catch { /* font embed failed */ }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Font extraction failed for', fontName, e);
+        }
+        return null;
+      };
+
+      // Fallback standard fonts (only used if extraction fails)
       const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
       const helveticaBoldOblique = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+
+      const getFallbackFont = (bold: boolean, italic: boolean) => {
+        if (bold && italic) return helveticaBoldOblique;
+        if (bold) return helveticaBold;
+        if (italic) return helveticaOblique;
+        return helveticaFont;
+      };
+
       const pagesArr = pdfDoc.getPages();
 
       const parseColor = (hex: string) => {
@@ -587,7 +661,6 @@ export const usePdfEditor = () => {
 
       // Re-get pages after removal
       const finalPages = pdfDoc.getPages();
-      // Map original page index to new index after deletions
       const activePages = pages.filter(p => !p.isDeleted);
       const pageIndexMap = new Map<number, number>();
       activePages.forEach((p, i) => pageIndexMap.set(p.pageIndex, i));
@@ -599,20 +672,20 @@ export const usePdfEditor = () => {
         const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
-        const fontSize = deleted.fontSize / scale;
-        const origX = (deleted.x / scale);
-        const origY = height - (deleted.y / scale) - fontSize;
-        let font = helveticaFont;
-        if (deleted.bold && deleted.italic) font = helveticaBoldOblique;
-        else if (deleted.bold) font = helveticaBold;
-        else if (deleted.italic) font = helveticaOblique;
+        const fontSize = deleted.pdfFontSize || (deleted.fontSize / scale);
+        const origX = deleted.pdfX || (deleted.x / scale);
+        const origY = deleted.pdfY || (height - (deleted.y / scale) - fontSize);
+        const bgCol = parseColor(deleted.bgColor || "#ffffff");
+        const font = getFallbackFont(deleted.bold, deleted.italic);
         const textWidth = font.widthOfTextAtSize(deleted.originalText, fontSize);
+        const fontHeight = font.heightAtSize(fontSize);
+        const descent = fontHeight * 0.25;
         page.drawRectangle({
-          x: origX,
-          y: origY,
+          x: origX - 0.5,
+          y: origY - descent,
           width: textWidth + 1,
-          height: fontSize + 1,
-          color: rgb(1, 1, 1),
+          height: fontHeight + 0.5,
+          color: bgCol,
           borderWidth: 0,
         });
       }
@@ -696,7 +769,7 @@ export const usePdfEditor = () => {
         }
       }
 
-      // Draw text blocks
+      // Draw text blocks - with original font extraction
       const blocksToProcess = textBlocks.filter(b => b.isModified || !b.isOriginal);
       for (const block of blocksToProcess) {
         const newIdx = pageIndexMap.get(block.pageIndex);
@@ -704,30 +777,36 @@ export const usePdfEditor = () => {
         const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
-        const fontSize = block.fontSize / scale;
-        const x = block.x / scale;
-        const y = height - (block.y / scale) - fontSize;
 
-        let font = helveticaFont;
-        if (block.bold && block.italic) font = helveticaBoldOblique;
-        else if (block.bold) font = helveticaBold;
-        else if (block.italic) font = helveticaOblique;
+        // Use stored PDF coordinates when available (original blocks)
+        const fontSize = block.pdfFontSize || (block.fontSize / scale);
+        const x = block.pdfX || (block.x / scale);
+        const y = block.pdfY || (height - (block.y / scale) - fontSize);
+
+        // Try to extract and reuse the original embedded font
+        let font: any = null;
+        if (block.isOriginal && block.originalFontName) {
+          font = await tryExtractFont(block.originalFontName, block.pageIndex);
+        }
+        // Fallback to standard fonts
+        if (!font) {
+          font = getFallbackFont(block.bold, block.italic);
+        }
 
         if (block.isOriginal && block.isModified) {
-          // Cover original text precisely using font metrics
+          // Cover original text with sampled background color
+          const bgCol = parseColor(block.bgColor || "#ffffff");
           const origWidth = font.widthOfTextAtSize(block.originalText, fontSize);
           const newWidth = font.widthOfTextAtSize(block.text, fontSize);
           const coverWidth = Math.max(origWidth, newWidth);
-          // Use actual font descent for tight coverage
           const fontHeight = font.heightAtSize(fontSize);
-          const descent = fontHeight * 0.25; // standard descent ratio
-          const totalHeight = fontHeight;
+          const descent = fontHeight * 0.25;
           page.drawRectangle({
             x: x - 0.5,
             y: y - descent,
             width: coverWidth + 1,
-            height: totalHeight + 0.5,
-            color: rgb(1, 1, 1),
+            height: fontHeight + 0.5,
+            color: bgCol,
             borderWidth: 0,
           });
         }
