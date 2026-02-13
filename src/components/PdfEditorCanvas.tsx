@@ -489,6 +489,7 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
   const inputRef = useRef<HTMLInputElement>(null);
   const elRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef(false);
+  const isOriginalBlock = block.isOriginal;
 
   useEffect(() => { setLocalText(block.text); }, [block.text]);
   useEffect(() => {
@@ -549,7 +550,7 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
       >
       {isSelected && <div className="absolute -inset-1 border-2 border-primary rounded pointer-events-none" />}
 
-      {isSelected && !isEditing && (
+      {isSelected && !isEditing && !isOriginalBlock && (
         <div className="absolute -top-2 -right-2 z-20 flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
           <button
             className="p-1 bg-destructive text-destructive-foreground rounded shadow-lg hover:bg-destructive/90"
@@ -573,12 +574,15 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
               if (e.key === "Enter") handleSaveEdit();
               if (e.key === "Escape") { setLocalText(block.text); setIsEditing(false); onUpdate({ isEditing: false }); }
             }}
-            className="border-none outline-none bg-white"
+            className="border-none outline-none"
             style={{
               fontSize: block.fontSize, fontFamily: block.fontFamily, color: block.color,
               fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
               minWidth: "80px", width: `${Math.max(localText.length + 2, 10)}ch`,
               lineHeight: 1.2, padding: 0, margin: 0, borderRadius: 0,
+              backgroundColor: "transparent",
+              letterSpacing: block.letterSpacing ? `${block.letterSpacing}px` : "normal",
+              caretColor: block.color,
             }}
             onClick={(e) => e.stopPropagation()}
           />
@@ -597,13 +601,15 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
             color: block.isOriginal && !block.isModified ? "transparent" : block.color,
             fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
             lineHeight: 1.2,
-            // Seamless background matching for modified original text
+            letterSpacing: block.letterSpacing ? `${block.letterSpacing}px` : "normal",
+            // For modified original text: render with transparent bg so the PDF image beneath is covered
+            // then use a tight white background that precisely matches text bounds
             ...(block.isOriginal && block.isModified ? {
               backgroundColor: "white",
-              boxShadow: "0 0 0 1px white",
+              boxShadow: "0 0 1px 0.5px white",
               borderRadius: 0,
-              padding: "0 1px",
-              margin: "0 -1px",
+              padding: "0 0.5px",
+              margin: "0 -0.5px",
             } : {}),
           }}
         >
