@@ -544,7 +544,6 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
         )}
         style={{
           left: block.x, top: block.y, minWidth: Math.max(block.width, 30),
-          backgroundColor: block.isOriginal && block.isModified ? "white" : undefined,
         }}
         onMouseDown={handleMouseDown}
       >
@@ -598,6 +597,14 @@ const TextBlockEditor = ({ block, isSelected, onSelect, onUpdate, onDelete }: {
             color: block.isOriginal && !block.isModified ? "transparent" : block.color,
             fontWeight: block.bold ? "bold" : "normal", fontStyle: block.italic ? "italic" : "normal",
             lineHeight: 1.2,
+            // Seamless background matching for modified original text
+            ...(block.isOriginal && block.isModified ? {
+              backgroundColor: "white",
+              boxShadow: "0 0 0 1px white",
+              borderRadius: 0,
+              padding: "0 1px",
+              margin: "0 -1px",
+            } : {}),
           }}
         >
           {block.text}
