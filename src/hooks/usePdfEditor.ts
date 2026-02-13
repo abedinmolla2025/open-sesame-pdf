@@ -299,7 +299,8 @@ export const usePdfEditor = () => {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      pdfBytesRef.current = new Uint8Array(arrayBuffer);
+      // Store a copy of the bytes for pdf-lib (save), since pdfjs may transfer the buffer
+      pdfBytesRef.current = new Uint8Array(arrayBuffer.slice(0));
 
       const pdfjsLib = await import("pdfjs-dist");
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -534,7 +535,7 @@ export const usePdfEditor = () => {
     setStatus("saving");
     try {
       const { PDFDocument, rgb, StandardFonts, degrees } = await import("pdf-lib");
-      const pdfDoc = await PDFDocument.load(pdfBytesRef.current);
+      const pdfDoc = await PDFDocument.load(pdfBytesRef.current, { ignoreEncryption: true, updateMetadata: false });
       const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
