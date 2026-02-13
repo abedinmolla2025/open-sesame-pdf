@@ -55,6 +55,10 @@ export interface TextBlock {
   isEditing: boolean;
   isOriginal: boolean;
   isModified: boolean;
+  // Advanced: original PDF metadata for seamless replacement
+  originalFontName: string;
+  letterSpacing: number;
+  transform: number[] | null; // original transform matrix [a,b,c,d,e,f]
 }
 
 export interface WhiteoutBlock {
@@ -239,7 +243,10 @@ export const usePdfEditor = () => {
         if (item.str && item.str.trim()) {
           const tx = item.transform;
           const x = tx[4] * renderScale;
-          const y = viewport.height - (tx[5] * renderScale) - ((item.height || 12) * renderScale);
+          // Use transform-based font size (more accurate than item.height)
+          const txFontSize = Math.abs(tx[3]) || Math.abs(tx[0]) || item.height || 12;
+          const scaledFontSize = txFontSize * renderScale;
+          const y = viewport.height - (tx[5] * renderScale) - scaledFontSize;
 
           // Detect bold/italic from font name
           const fontName = (item.fontName || "").toLowerCase();
@@ -267,8 +274,8 @@ export const usePdfEditor = () => {
             originalText: item.str,
             x, y,
             width: item.width * renderScale,
-            height: (item.height || 12) * renderScale,
-            fontSize: Math.round((item.height || 12) * renderScale),
+            height: scaledFontSize,
+            fontSize: Math.round(scaledFontSize),
             fontFamily: resolvedFontFamily,
             color: textColor,
             bold: isBold,
@@ -277,6 +284,9 @@ export const usePdfEditor = () => {
             isEditing: false,
             isOriginal: true,
             isModified: false,
+            originalFontName: item.fontName || "Helvetica",
+            letterSpacing: 0,
+            transform: tx ? [...tx] : null,
           });
         }
       });
@@ -375,6 +385,18 @@ export const usePdfEditor = () => {
     pushHistory();
     setTextBlocks(prev => prev.map(block => {
       if (block.id !== id) return block;
+      // For original blocks: only allow text and editing state changes (style-locked)
+      if (block.isOriginal) {
+        const allowed: Partial<TextBlock> = {};
+        if (updates.text !== undefined) allowed.text = updates.text;
+        if (updates.isEditing !== undefined) allowed.isEditing = updates.isEditing;
+        if (updates.isModified !== undefined) allowed.isModified = updates.isModified;
+        if (updates.x !== undefined) allowed.x = updates.x;
+        if (updates.y !== undefined) allowed.y = updates.y;
+        const newBlock = { ...block, ...allowed };
+        if (allowed.text !== undefined && allowed.text !== block.originalText) newBlock.isModified = true;
+        return newBlock;
+      }
       const newBlock = { ...block, ...updates };
       if (updates.text !== undefined && updates.text !== block.originalText) newBlock.isModified = true;
       if (updates.bold !== undefined || updates.italic !== undefined || updates.color !== undefined || updates.fontSize !== undefined) newBlock.isModified = true;
@@ -391,6 +413,7 @@ export const usePdfEditor = () => {
       fontSize: 18, fontFamily: "Helvetica",
       color: "#000000", bold: false, italic: false,
       pageIndex, isEditing: true, isOriginal: false, isModified: true,
+      originalFontName: "Helvetica", letterSpacing: 0, transform: null,
     };
     setTextBlocks(prev => [...prev, newBlock]);
     return newBlock.id;
@@ -691,22 +714,25 @@ export const usePdfEditor = () => {
         else if (block.italic) font = helveticaOblique;
 
         if (block.isOriginal && block.isModified) {
-          // Cover original text precisely - no padding to keep it invisible
+          // Cover original text precisely using font metrics
           const origWidth = font.widthOfTextAtSize(block.originalText, fontSize);
           const newWidth = font.widthOfTextAtSize(block.text, fontSize);
           const coverWidth = Math.max(origWidth, newWidth);
-          // Use font metrics for precise height: descender to ascender
-          const descent = font.heightAtSize(fontSize) * 0.2; // approximate descender
+          // Use actual font descent for tight coverage
+          const fontHeight = font.heightAtSize(fontSize);
+          const descent = fontHeight * 0.25; // standard descent ratio
+          const totalHeight = fontHeight;
           page.drawRectangle({
-            x: x,
+            x: x - 0.5,
             y: y - descent,
             width: coverWidth + 1,
-            height: fontSize + descent + 1,
+            height: totalHeight + 0.5,
             color: rgb(1, 1, 1),
             borderWidth: 0,
           });
         }
 
+        // Draw new text at exact original position
         page.drawText(block.text, { x, y, size: fontSize, font, color: parseColor(block.color) });
       }
 
