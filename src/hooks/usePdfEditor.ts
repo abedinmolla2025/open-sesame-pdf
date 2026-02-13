@@ -582,72 +582,226 @@ export const usePdfEditor = () => {
     setStatus("saving");
     try {
       const pdfLib = await import("pdf-lib");
-      const { PDFDocument, rgb, StandardFonts, degrees, PDFName } = pdfLib;
+      const pako = await import("pako");
+      const { PDFDocument, rgb, StandardFonts, degrees, PDFName, PDFArray, PDFRawStream, PDFNumber } = pdfLib;
       const pdfDoc = await PDFDocument.load(pdfBytesRef.current, { ignoreEncryption: true, updateMetadata: false });
-
-      // --- Try to extract and cache embedded fonts from the original PDF ---
-      const embeddedFontCache = new Map<string, any>();
-      const tryExtractFont = async (fontName: string, pageIdx: number) => {
-        if (embeddedFontCache.has(fontName)) return embeddedFontCache.get(fontName);
-        try {
-          const pg = pdfDoc.getPages()[pageIdx];
-          if (!pg) return null;
-          const resources = (pg.node as any).get?.(PDFName.of('Resources'));
-          if (!resources) return null;
-          const fontDictRef = resources.lookup?.(PDFName.of('Font'));
-          if (!fontDictRef || !fontDictRef.entries) return null;
-
-          const entries = fontDictRef.entries();
-          for (const [key] of entries) {
-            const fontObj = fontDictRef.lookup?.(key);
-            if (!fontObj || !fontObj.get) continue;
-            const baseFont = fontObj.get(PDFName.of('BaseFont'));
-            if (baseFont && baseFont.toString().includes(fontName.replace(/[^a-zA-Z]/g, ''))) {
-              const descriptor = fontObj.lookup?.(PDFName.of('FontDescriptor'));
-              if (!descriptor || !descriptor.lookup) continue;
-              for (const ff of ['FontFile2', 'FontFile', 'FontFile3']) {
-                const fontFileRef = descriptor.lookup(PDFName.of(ff));
-                if (fontFileRef && fontFileRef.getContents) {
-                  const fontBytes = fontFileRef.getContents();
-                  try {
-                    const embedded = await pdfDoc.embedFont(fontBytes, { subset: false });
-                    embeddedFontCache.set(fontName, embedded);
-                    return embedded;
-                  } catch { /* font embed failed */ }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Font extraction failed for', fontName, e);
-        }
-        return null;
-      };
-
-      // Fallback standard fonts (only used if extraction fails)
-      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-      const helveticaBoldOblique = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-
-      const getFallbackFont = (bold: boolean, italic: boolean) => {
-        if (bold && italic) return helveticaBoldOblique;
-        if (bold) return helveticaBold;
-        if (italic) return helveticaOblique;
-        return helveticaFont;
-      };
-
-      const pagesArr = pdfDoc.getPages();
 
       const parseColor = (hex: string) => {
         const h = hex.replace("#", "");
         return rgb(parseInt(h.substring(0, 2), 16) / 255, parseInt(h.substring(2, 4), 16) / 255, parseInt(h.substring(4, 6), 16) / 255);
       };
 
+      // Latin-1 helpers
+      const latin1Decode = (bytes: Uint8Array): string => {
+        let s = '';
+        for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+        return s;
+      };
+      const latin1Encode = (str: string): Uint8Array => {
+        const bytes = new Uint8Array(str.length);
+        for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xFF;
+        return bytes;
+      };
+      const escapePdfStr = (s: string): string =>
+        s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+      const escapeRegExp = (s: string): string =>
+        s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const pagesArr = pdfDoc.getPages();
+
       // Handle page rotations
       for (const pg of pages) {
         if (pg.rotation !== 0 && pagesArr[pg.pageIndex]) {
           pagesArr[pg.pageIndex].setRotation(degrees(pg.rotation));
+        }
+      }
+
+      // ============ CONTENT STREAM TEXT REPLACEMENT ============
+      // For modified original text blocks: directly modify the PDF content stream
+      // No rectangles, no overlays - pure text replacement in the stream
+      const modifiedOriginals = textBlocks.filter(b => b.isOriginal && b.isModified && b.originalText !== b.text);
+      const streamReplacedSet = new Set<string>(); // track which blocks were successfully replaced
+
+      // Group by page
+      const blocksByPage = new Map<number, typeof modifiedOriginals>();
+      for (const block of modifiedOriginals) {
+        const arr = blocksByPage.get(block.pageIndex) || [];
+        arr.push(block);
+        blocksByPage.set(block.pageIndex, arr);
+      }
+
+      // Also handle deleted originals by replacing their text with empty
+      const deletedByPage = new Map<number, typeof deletedOriginals>();
+      for (const del of deletedOriginals) {
+        const arr = deletedByPage.get(del.pageIndex) || [];
+        arr.push(del);
+        deletedByPage.set(del.pageIndex, arr);
+      }
+
+      // Process each page's content stream
+      const allPageIndices = new Set([...blocksByPage.keys(), ...deletedByPage.keys()]);
+      for (const pageIdx of allPageIndices) {
+        const page = pagesArr[pageIdx];
+        if (!page) continue;
+
+        // Build replacement map: originalText -> newText
+        const replacements = new Map<string, string>();
+        const modBlocks = blocksByPage.get(pageIdx) || [];
+        for (const block of modBlocks) {
+          replacements.set(block.originalText, block.text);
+        }
+        const delBlocks = deletedByPage.get(pageIdx) || [];
+        for (const del of delBlocks) {
+          replacements.set(del.originalText, ''); // Replace with empty to "delete"
+        }
+        if (replacements.size === 0) continue;
+
+        // Access content stream(s) from the page
+        const contentsEntry = (page.node as any).get?.(PDFName.of('Contents'));
+        if (!contentsEntry) continue;
+
+        const resolved = pdfDoc.context.lookup(contentsEntry);
+        const streamEntries: { ref: any; obj: any }[] = [];
+
+        if (resolved && (resolved as any).size && typeof (resolved as any).get === 'function') {
+          // PDFArray of streams
+          const arr = resolved as any;
+          for (let i = 0; i < arr.size(); i++) {
+            const ref = arr.get(i);
+            const obj = pdfDoc.context.lookup(ref) as any;
+            if (obj && typeof obj.getContents === 'function') {
+              streamEntries.push({ ref, obj });
+            }
+          }
+        } else {
+          // Single stream ref
+          const obj = pdfDoc.context.lookup(contentsEntry) as any;
+          if (obj && typeof obj.getContents === 'function') {
+            streamEntries.push({ ref: contentsEntry, obj });
+          }
+        }
+
+        for (const { ref, obj } of streamEntries) {
+          let rawData: Uint8Array;
+          try {
+            rawData = obj.getContents();
+          } catch { continue; }
+
+          // Check for compression filter
+          const dict = obj.dict || (obj as any).dictionary;
+          const filterEntry = dict?.get?.(PDFName.of('Filter'));
+          const filterStr = filterEntry?.toString() || '';
+          const isFlate = filterStr.includes('FlateDecode');
+
+          let data: Uint8Array;
+          if (isFlate) {
+            try {
+              data = pako.inflate(rawData);
+            } catch {
+              // Try raw inflate
+              try {
+                data = pako.inflateRaw(rawData);
+              } catch { continue; }
+            }
+          } else {
+            data = rawData;
+          }
+
+          let streamStr = latin1Decode(data);
+          let anyModified = false;
+
+          for (const [original, replacement] of replacements) {
+            if (streamReplacedSet.has(original)) continue;
+
+            const escOrig = escapePdfStr(original);
+            const escRepl = escapePdfStr(replacement);
+
+            // Strategy 1: Direct literal string match — (originalText) in Tj or TJ
+            const literalPattern = `(${escOrig})`;
+            if (streamStr.includes(literalPattern)) {
+              streamStr = streamStr.split(literalPattern).join(`(${escRepl})`);
+              anyModified = true;
+              streamReplacedSet.add(original);
+              // Also mark the block IDs
+              for (const b of modBlocks) {
+                if (b.originalText === original) streamReplacedSet.add(b.id);
+              }
+              for (const d of delBlocks) {
+                if (d.originalText === original) streamReplacedSet.add(d.id);
+              }
+              continue;
+            }
+
+            // Strategy 2: TJ array — text split across multiple string elements with kerning
+            // Find TJ arrays, concatenate their text parts, check for match
+            const tjArrayRegex = /\[([^\]]+)\]\s*TJ/g;
+            let match;
+            let tjModified = false;
+            const newStreamParts: string[] = [];
+            let lastIndex = 0;
+
+            // Reset regex
+            tjArrayRegex.lastIndex = 0;
+            while ((match = tjArrayRegex.exec(streamStr)) !== null) {
+              const arrayContent = match[1];
+              // Extract all string parts from the TJ array
+              const stringParts: string[] = [];
+              const partRegex = /\(([^)]*(?:\\.[^)]*)*)\)/g;
+              let partMatch;
+              while ((partMatch = partRegex.exec(arrayContent)) !== null) {
+                // Unescape PDF string
+                const raw = partMatch[1]
+                  .replace(/\\\\/g, '\x00BACKSLASH\x00')
+                  .replace(/\\\(/g, '(')
+                  .replace(/\\\)/g, ')')
+                  .replace(/\x00BACKSLASH\x00/g, '\\');
+                stringParts.push(raw);
+              }
+              const concatenated = stringParts.join('');
+
+              if (concatenated === original) {
+                // Replace entire TJ array with single string
+                newStreamParts.push(streamStr.substring(lastIndex, match.index));
+                newStreamParts.push(`[(${escRepl})] TJ`);
+                lastIndex = match.index + match[0].length;
+                tjModified = true;
+                streamReplacedSet.add(original);
+                for (const b of modBlocks) {
+                  if (b.originalText === original) streamReplacedSet.add(b.id);
+                }
+                for (const d of delBlocks) {
+                  if (d.originalText === original) streamReplacedSet.add(d.id);
+                }
+                break; // Only replace first occurrence
+              }
+            }
+
+            if (tjModified) {
+              newStreamParts.push(streamStr.substring(lastIndex));
+              streamStr = newStreamParts.join('');
+              anyModified = true;
+            }
+          }
+
+          if (anyModified) {
+            let newBytes = latin1Encode(streamStr);
+
+            // Recompress if original was compressed
+            if (isFlate) {
+              newBytes = pako.deflate(newBytes);
+            }
+
+            // Create new stream with updated dict and assign to same ref
+            const newDict = dict.clone(pdfDoc.context);
+            newDict.set(PDFName.of('Length'), PDFNumber.of(newBytes.length));
+            // Remove DecodeParms if filter changed (safety)
+            if (!isFlate) {
+              newDict.delete(PDFName.of('Filter'));
+              newDict.delete(PDFName.of('DecodeParms'));
+            }
+            const newStream = PDFRawStream.of(newDict, newBytes);
+            (pdfDoc.context as any).assign(ref, newStream);
+          }
         }
       }
 
@@ -661,12 +815,52 @@ export const usePdfEditor = () => {
 
       // Re-get pages after removal
       const finalPages = pdfDoc.getPages();
-      const activePages = pages.filter(p => !p.isDeleted);
+      const activePagesList = pages.filter(p => !p.isDeleted);
       const pageIndexMap = new Map<number, number>();
-      activePages.forEach((p, i) => pageIndexMap.set(p.pageIndex, i));
+      activePagesList.forEach((p, i) => pageIndexMap.set(p.pageIndex, i));
 
-      // Whiteout deleted original text blocks
-      for (const deleted of deletedOriginals) {
+      // Fallback: for modified blocks that couldn't be replaced in stream,
+      // use bgColor rectangle + drawText (invisible if bgColor matches)
+      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+      const helveticaBoldOblique = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+      const getFallbackFont = (bold: boolean, italic: boolean) => {
+        if (bold && italic) return helveticaBoldOblique;
+        if (bold) return helveticaBold;
+        if (italic) return helveticaOblique;
+        return helveticaFont;
+      };
+
+      // Fallback for modified originals that stream replacement missed
+      const unreplacedModified = modifiedOriginals.filter(b => !streamReplacedSet.has(b.id));
+      for (const block of unreplacedModified) {
+        const newIdx = pageIndexMap.get(block.pageIndex);
+        if (newIdx === undefined) continue;
+        const page = finalPages[newIdx];
+        if (!page) continue;
+        const { height } = page.getSize();
+        const fontSize = block.pdfFontSize || (block.fontSize / scale);
+        const x = block.pdfX || (block.x / scale);
+        const y = block.pdfY || (height - (block.y / scale) - fontSize);
+        const font = getFallbackFont(block.bold, block.italic);
+        const bgCol = parseColor(block.bgColor || "#ffffff");
+        const origWidth = font.widthOfTextAtSize(block.originalText, fontSize);
+        const newWidth = font.widthOfTextAtSize(block.text, fontSize);
+        const coverWidth = Math.max(origWidth, newWidth);
+        const fontHeight = font.heightAtSize(fontSize);
+        const descent = fontHeight * 0.25;
+        page.drawRectangle({
+          x: x - 0.5, y: y - descent,
+          width: coverWidth + 1, height: fontHeight + 0.5,
+          color: bgCol, borderWidth: 0,
+        });
+        page.drawText(block.text, { x, y, size: fontSize, font, color: parseColor(block.color) });
+      }
+
+      // Fallback for deleted originals that stream replacement missed
+      const unreplacedDeleted = deletedOriginals.filter(d => !streamReplacedSet.has(d.id));
+      for (const deleted of unreplacedDeleted) {
         const newIdx = pageIndexMap.get(deleted.pageIndex);
         if (newIdx === undefined) continue;
         const page = finalPages[newIdx];
@@ -681,12 +875,9 @@ export const usePdfEditor = () => {
         const fontHeight = font.heightAtSize(fontSize);
         const descent = fontHeight * 0.25;
         page.drawRectangle({
-          x: origX - 0.5,
-          y: origY - descent,
-          width: textWidth + 1,
-          height: fontHeight + 0.5,
-          color: bgCol,
-          borderWidth: 0,
+          x: origX - 0.5, y: origY - descent,
+          width: textWidth + 1, height: fontHeight + 0.5,
+          color: bgCol, borderWidth: 0,
         });
       }
 
@@ -711,12 +902,9 @@ export const usePdfEditor = () => {
         const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
-        const ax = annot.x / scale;
-        const ay = height - (annot.y / scale) - (annot.height / scale);
-        const aw = annot.width / scale;
-        const ah = annot.height / scale;
+        const ax = annot.x / scale; const ay = height - (annot.y / scale) - (annot.height / scale);
+        const aw = annot.width / scale; const ah = annot.height / scale;
         const color = parseColor(annot.color);
-
         if (annot.type === "highlight") {
           page.drawRectangle({ x: ax, y: ay, width: aw, height: ah, color, opacity: annot.opacity });
         } else if (annot.type === "underline") {
@@ -739,8 +927,7 @@ export const usePdfEditor = () => {
           page.drawLine({
             start: { x: pts[i].x / scale, y: height - pts[i].y / scale },
             end: { x: pts[i + 1].x / scale, y: height - pts[i + 1].y / scale },
-            thickness: path.strokeWidth / scale,
-            color,
+            thickness: path.strokeWidth / scale, color,
           });
         }
       }
@@ -752,14 +939,11 @@ export const usePdfEditor = () => {
         const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
-        const sx = shape.x / scale;
-        const sy = height - (shape.y / scale) - (shape.height / scale);
-        const sw = shape.width / scale;
-        const sh = shape.height / scale;
+        const sx = shape.x / scale; const sy = height - (shape.y / scale) - (shape.height / scale);
+        const sw = shape.width / scale; const sh = shape.height / scale;
         const strokeColor = parseColor(shape.strokeColor);
         const hasFill = shape.fillColor !== "transparent";
         const fillColor = hasFill ? parseColor(shape.fillColor) : undefined;
-
         if (shape.type === "rectangle") {
           page.drawRectangle({ x: sx, y: sy, width: sw, height: sh, borderColor: strokeColor, borderWidth: shape.strokeWidth / scale, color: fillColor });
         } else if (shape.type === "circle") {
@@ -769,49 +953,18 @@ export const usePdfEditor = () => {
         }
       }
 
-      // Draw text blocks - with original font extraction
-      const blocksToProcess = textBlocks.filter(b => b.isModified || !b.isOriginal);
-      for (const block of blocksToProcess) {
+      // Draw new (non-original) text blocks only
+      const newTextBlocks = textBlocks.filter(b => !b.isOriginal && b.isModified);
+      for (const block of newTextBlocks) {
         const newIdx = pageIndexMap.get(block.pageIndex);
         if (newIdx === undefined) continue;
         const page = finalPages[newIdx];
         if (!page) continue;
         const { height } = page.getSize();
-
-        // Use stored PDF coordinates when available (original blocks)
-        const fontSize = block.pdfFontSize || (block.fontSize / scale);
-        const x = block.pdfX || (block.x / scale);
-        const y = block.pdfY || (height - (block.y / scale) - fontSize);
-
-        // Try to extract and reuse the original embedded font
-        let font: any = null;
-        if (block.isOriginal && block.originalFontName) {
-          font = await tryExtractFont(block.originalFontName, block.pageIndex);
-        }
-        // Fallback to standard fonts
-        if (!font) {
-          font = getFallbackFont(block.bold, block.italic);
-        }
-
-        if (block.isOriginal && block.isModified) {
-          // Cover original text with sampled background color
-          const bgCol = parseColor(block.bgColor || "#ffffff");
-          const origWidth = font.widthOfTextAtSize(block.originalText, fontSize);
-          const newWidth = font.widthOfTextAtSize(block.text, fontSize);
-          const coverWidth = Math.max(origWidth, newWidth);
-          const fontHeight = font.heightAtSize(fontSize);
-          const descent = fontHeight * 0.25;
-          page.drawRectangle({
-            x: x - 0.5,
-            y: y - descent,
-            width: coverWidth + 1,
-            height: fontHeight + 0.5,
-            color: bgCol,
-            borderWidth: 0,
-          });
-        }
-
-        // Draw new text at exact original position
+        const fontSize = block.fontSize / scale;
+        const x = block.x / scale;
+        const y = height - (block.y / scale) - fontSize;
+        const font = getFallbackFont(block.bold, block.italic);
         page.drawText(block.text, { x, y, size: fontSize, font, color: parseColor(block.color) });
       }
 
