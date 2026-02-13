@@ -203,6 +203,23 @@ export const usePdfEditor = () => {
           const x = tx[4] * renderScale;
           const y = viewport.height - (tx[5] * renderScale) - ((item.height || 12) * renderScale);
 
+          // Detect bold/italic from font name
+          const fontName = (item.fontName || "").toLowerCase();
+          const isBold = fontName.includes("bold") || fontName.includes("black") || fontName.includes("heavy");
+          const isItalic = fontName.includes("italic") || fontName.includes("oblique");
+
+          // Extract color from the text style if available
+          let textColor = "#000000";
+          if (item.color) {
+            const c = item.color;
+            if (Array.isArray(c) && c.length >= 3) {
+              const r = Math.round(c[0] * 255);
+              const g = Math.round(c[1] * 255);
+              const b = Math.round(c[2] * 255);
+              textColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+          }
+
           extractedTextBlocks.push({
             id: `text-${i}-${index}`,
             text: item.str,
@@ -212,9 +229,9 @@ export const usePdfEditor = () => {
             height: (item.height || 12) * renderScale,
             fontSize: Math.round((item.height || 12) * renderScale),
             fontFamily: item.fontName || "Helvetica",
-            color: "#000000",
-            bold: false,
-            italic: false,
+            color: textColor,
+            bold: isBold,
+            italic: isItalic,
             pageIndex: i,
             isEditing: false,
             isOriginal: true,
