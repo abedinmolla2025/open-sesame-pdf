@@ -8,6 +8,7 @@ import Signature from "./pages/Signature";
 import Editor from "./pages/Editor";
 import Compressor from "./pages/Compressor";
 import Merger from "./pages/Merger";
+import Splitter from "./pages/Splitter";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
