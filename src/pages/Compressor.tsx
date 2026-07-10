@@ -336,9 +336,9 @@ const Compressor = () => {
                           <button
                             key={size}
                             type="button"
-                            onClick={() => setTargetSize(size)}
+                            onClick={() => setTargetPreset(size)}
                             className={`h-14 rounded-lg border text-sm font-semibold transition-all ${
-                              targetSize === size
+                              targetPreset === size
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border hover:border-primary/50 text-foreground"
                             }`}
@@ -347,6 +347,35 @@ const Compressor = () => {
                           </button>
                         ))}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setTargetPreset("custom")}
+                        className={`w-full h-12 rounded-lg border text-sm font-semibold transition-all ${
+                          targetPreset === "custom"
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50 text-foreground"
+                        }`}
+                      >
+                        Custom size
+                      </button>
+                      {targetPreset === "custom" && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                          <Label htmlFor="custom-target-kb" className="shrink-0 text-sm">
+                            Target
+                          </Label>
+                          <input
+                            id="custom-target-kb"
+                            type="number"
+                            inputMode="numeric"
+                            min={10}
+                            step={10}
+                            value={customTargetKb}
+                            onChange={(e) => setCustomTargetKb(Number(e.target.value))}
+                            className="flex-1 h-10 px-3 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <span className="shrink-0 text-sm text-muted-foreground">KB</span>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         We'll re-compress the PDF until it fits under your target. Very large PDFs may not reach the smallest sizes without heavy quality loss.
                       </p>
