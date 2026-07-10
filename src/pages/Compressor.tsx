@@ -11,12 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 
 type CompressLevel = "low" | "medium" | "high" | "custom";
+type CompressMode = "quality" | "target";
+type TargetSize = 50 | 100 | 150 | 200;
 
 interface CompressResult {
   originalSize: number;
   compressedSize: number;
   blob: Blob;
   filename: string;
+  attempts?: number;
+  hitTarget?: boolean;
 }
 
 const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality: number; label: string }> = {
@@ -24,6 +28,21 @@ const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality:
   medium: { scale: 1.25, quality: 0.7, label: "Medium (recommended)" },
   high: { scale: 1.0, quality: 0.5, label: "High (smallest file)" },
 };
+
+const TARGET_SIZES: TargetSize[] = [50, 100, 150, 200];
+
+// Descending aggressiveness — tried in order until the output fits the target.
+const TARGET_ATTEMPTS: Array<{ scale: number; quality: number }> = [
+  { scale: 1.5, quality: 0.85 },
+  { scale: 1.35, quality: 0.75 },
+  { scale: 1.2, quality: 0.65 },
+  { scale: 1.05, quality: 0.55 },
+  { scale: 0.9, quality: 0.45 },
+  { scale: 0.75, quality: 0.35 },
+  { scale: 0.6, quality: 0.28 },
+  { scale: 0.5, quality: 0.22 },
+  { scale: 0.4, quality: 0.18 },
+];
 
 const Compressor = () => {
   usePageHead({
