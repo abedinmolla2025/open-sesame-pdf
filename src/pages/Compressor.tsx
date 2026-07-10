@@ -160,6 +160,8 @@ const Compressor = () => {
       let finalBytes: Uint8Array;
       let attempts = 0;
       let hitTarget = true;
+      let finalScale = 0;
+      let finalQuality = 0;
 
       if (mode === "target") {
         const targetKb =
@@ -168,6 +170,7 @@ const Compressor = () => {
             : targetPreset;
         const targetBytes = targetKb * 1024;
         let best: Uint8Array | null = null;
+        let bestAttempt = TARGET_ATTEMPTS[0];
 
         for (let idx = 0; idx < TARGET_ATTEMPTS.length; idx++) {
           attempts = idx + 1;
@@ -181,6 +184,7 @@ const Compressor = () => {
             setProgress(Math.round(overall));
           });
           best = bytes;
+          bestAttempt = attempt;
           if (bytes.byteLength <= targetBytes) {
             break;
           }
@@ -188,6 +192,8 @@ const Compressor = () => {
 
         if (!best) throw new Error("Compression produced no output");
         finalBytes = best;
+        finalScale = bestAttempt.scale;
+        finalQuality = bestAttempt.quality;
         hitTarget = finalBytes.byteLength <= targetBytes;
         setProgress(100);
       } else {
@@ -200,6 +206,8 @@ const Compressor = () => {
           setProgress(Math.round((done / total) * 100));
         });
         attempts = 1;
+        finalScale = settings.scale;
+        finalQuality = settings.quality;
       }
 
       const blob = new Blob([new Uint8Array(finalBytes)], { type: "application/pdf" });
@@ -212,7 +220,11 @@ const Compressor = () => {
         filename,
         attempts,
         hitTarget: mode === "target" ? hitTarget : undefined,
+        finalScale,
+        finalQuality,
+        mode,
       });
+
 
       if (mode === "target" && !hitTarget) {
         const shownKb =
