@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu } from "lucide-react";
+import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { path: "/", label: "PDF Unlocker", icon: FileKey, description: "Remove password protection" },
-  { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
   { path: "/editor", label: "PDF Editor", icon: FileEdit, description: "Edit text in PDFs" },
+  { path: "/compress", label: "PDF Compressor", icon: FileArchive, description: "Shrink PDF file size" },
+  { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
 ];
 
 export const Header = () => {
