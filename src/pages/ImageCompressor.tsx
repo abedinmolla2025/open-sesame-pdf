@@ -112,6 +112,7 @@ const ImageCompressor = () => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
   const [results, setResults] = useState<CompressedItem[] | null>(null);
+  const [justPasted, setJustPasted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
