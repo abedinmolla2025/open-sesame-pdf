@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { ShieldCheck, Shield, Zap, FileSignature, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { usePageHead } from "@/hooks/usePageHead";
 
 interface SignerDetail {
   name: string;
@@ -26,6 +26,20 @@ interface SignatureInfo {
 }
 
 const Signature = () => {
+  usePageHead({
+    title: "PDF Signature — Verify & Sign PDFs | Free My PDF",
+    description: "Verify existing digital signatures or add your own signature to a PDF. Fully client-side and private.",
+    canonical: "https://free-my-pdf.lovable.app/signature",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Free My PDF Signature",
+      applicationCategory: "Utility",
+      operatingSystem: "Any",
+      url: "https://free-my-pdf.lovable.app/signature",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [verifyResult, setVerifyResult] = useState<SignatureInfo | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);

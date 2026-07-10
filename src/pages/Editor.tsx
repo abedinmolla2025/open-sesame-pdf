@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { FileEdit, AlertCircle, Info } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -8,8 +7,23 @@ import { PdfEditorCanvas } from "@/components/PdfEditorCanvas";
 import { EditorToolbar } from "@/components/EditorToolbar";
 import { usePdfEditor } from "@/hooks/usePdfEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { usePageHead } from "@/hooks/usePageHead";
 
 const Editor = () => {
+  usePageHead({
+    title: "PDF Editor — Edit Text & Annotate PDFs | Free My PDF",
+    description: "Edit PDF text, add whiteouts, shapes, images, and annotations right in your browser. No uploads, 100% private.",
+    canonical: "https://free-my-pdf.lovable.app/editor",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Free My PDF Editor",
+      applicationCategory: "Utility",
+      operatingSystem: "Any",
+      url: "https://free-my-pdf.lovable.app/editor",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const {
