@@ -10,6 +10,20 @@ import { usePdfUnlocker } from "@/hooks/usePdfUnlocker";
 import { usePageHead } from "@/hooks/usePageHead";
 
 const Index = () => {
+  usePageHead({
+    title: "Unlock PDF — Free My PDF",
+    description: "Remove password protection from PDF files instantly in your browser. 100% client-side — your files never leave your device.",
+    canonical: "https://free-my-pdf.lovable.app/",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Free My PDF Unlocker",
+      applicationCategory: "Utility",
+      operatingSystem: "Any",
+      url: "https://free-my-pdf.lovable.app/",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const { status, error, progress, unlockPdf, downloadUnlockedPdf, reset } = usePdfUnlocker();
