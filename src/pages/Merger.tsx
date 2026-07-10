@@ -9,6 +9,8 @@ import {
   ArrowDown,
   FileText,
   Upload,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -379,18 +381,40 @@ const Merger = () => {
 
               {/* Progress */}
               {isProcessing && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{statusText || "Merging…"}</span>
-                    <span>{progress}%</span>
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  role="status"
+                  aria-live="polite"
+                  className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                    <p className="text-sm font-medium text-foreground flex-1 truncate">
+                      {statusText || "Merging your PDFs…"}
+                    </p>
+                    <span className="text-sm font-semibold text-primary tabular-nums">
+                      {progress}%
+                    </span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${progress}%` }}
+                  <div
+                    className="h-2 rounded-full bg-muted overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <motion.div
+                      className="h-full bg-primary"
+                      initial={false}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
                     />
                   </div>
-                </div>
+                  <p className="text-xs text-muted-foreground">
+                    Please keep this tab open — everything is processed locally in your browser.
+                  </p>
+                </motion.div>
               )}
 
               {/* Actions */}
@@ -400,7 +424,11 @@ const Merger = () => {
                   disabled={isProcessing || files.length < 2}
                   className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl glow-effect"
                 >
-                  <Combine className="w-5 h-5 mr-2" />
+                  {isProcessing ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <Combine className="w-5 h-5 mr-2" />
+                  )}
                   {isProcessing
                     ? "Merging…"
                     : files.length < 2
@@ -415,7 +443,28 @@ const Merger = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-4"
+                  role="status"
+                  aria-live="polite"
                 >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-center gap-3 p-4 rounded-xl border border-primary/40 bg-primary/10"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        Your merged PDF is ready
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {result.filename} — {formatBytes(result.size)}
+                      </p>
+                    </div>
+                  </motion.div>
+
                   <div className="p-5 rounded-xl border border-primary/30 bg-primary/5">
                     <div className="grid grid-cols-3 gap-3 text-center">
                       <div>
