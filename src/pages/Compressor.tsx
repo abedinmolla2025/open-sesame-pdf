@@ -159,14 +159,18 @@ const Compressor = () => {
       let hitTarget = true;
 
       if (mode === "target") {
-        const targetBytes = targetSize * 1024;
+        const targetKb =
+          targetPreset === "custom"
+            ? Math.max(10, Math.floor(customTargetKb || 0))
+            : targetPreset;
+        const targetBytes = targetKb * 1024;
         let best: Uint8Array | null = null;
 
         for (let idx = 0; idx < TARGET_ATTEMPTS.length; idx++) {
           attempts = idx + 1;
           const attempt = TARGET_ATTEMPTS[idx];
           setStatusText(
-            `Attempt ${attempts}/${TARGET_ATTEMPTS.length} — targeting ${targetSize} KB`
+            `Attempt ${attempts}/${TARGET_ATTEMPTS.length} — targeting ${targetKb} KB`
           );
           const bytes = await buildPdf(srcPdf, attempt, (done, total) => {
             const attemptFrac = done / total;
@@ -208,9 +212,11 @@ const Compressor = () => {
       });
 
       if (mode === "target" && !hitTarget) {
+        const shownKb =
+          targetPreset === "custom" ? Math.max(10, Math.floor(customTargetKb || 0)) : targetPreset;
         toast({
           title: "Target not fully reached",
-          description: `Smallest possible: ${formatBytes(blob.size)} (target ${targetSize} KB). Try a larger target.`,
+          description: `Smallest possible: ${formatBytes(blob.size)} (target ${shownKb} KB). Try a larger target.`,
         });
       } else {
         toast({
@@ -229,7 +235,7 @@ const Compressor = () => {
       setIsProcessing(false);
       setStatusText("");
     }
-  }, [selectedFile, mode, level, targetSize, customQuality, customScale, buildPdf, toast]);
+  }, [selectedFile, mode, level, targetPreset, customTargetKb, customQuality, customScale, buildPdf, toast]);
 
   const download = useCallback(() => {
     if (!result) return;
