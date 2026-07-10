@@ -13,6 +13,7 @@ const navItems = [
   { path: "/", label: "PDF Unlocker", icon: FileKey, description: "Remove password protection" },
   { path: "/editor", label: "PDF Editor", icon: FileEdit, description: "Edit text in PDFs" },
   { path: "/compress", label: "PDF Compressor", icon: FileArchive, description: "Shrink PDF file size" },
+  { path: "/merge", label: "PDF Merger", icon: Combine, description: "Combine multiple PDFs" },
   { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
 ];
 
