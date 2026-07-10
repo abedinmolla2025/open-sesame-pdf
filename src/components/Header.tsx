@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine } from "lucide-react";
+import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ const navItems = [
   { path: "/editor", label: "PDF Editor", icon: FileEdit, description: "Edit text in PDFs" },
   { path: "/compress", label: "PDF Compressor", icon: FileArchive, description: "Shrink PDF file size" },
   { path: "/merge", label: "PDF Merger", icon: Combine, description: "Combine multiple PDFs" },
+  { path: "/split", label: "PDF Splitter", icon: Scissors, description: "Split PDFs by page or range" },
   { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
 ];
 

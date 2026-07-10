@@ -8,6 +8,7 @@ import Signature from "./pages/Signature";
 import Editor from "./pages/Editor";
 import Compressor from "./pages/Compressor";
 import Merger from "./pages/Merger";
+import Splitter from "./pages/Splitter";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/editor" element={<Editor />} />
           <Route path="/compress" element={<Compressor />} />
           <Route path="/merge" element={<Merger />} />
+          <Route path="/split" element={<Splitter />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
