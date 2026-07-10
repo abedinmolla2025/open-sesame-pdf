@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Signature from "./pages/Signature";
 import Editor from "./pages/Editor";
 import Compressor from "./pages/Compressor";
+import Merger from "./pages/Merger";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
