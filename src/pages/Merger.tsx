@@ -9,6 +9,8 @@ import {
   ArrowDown,
   FileText,
   Upload,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
