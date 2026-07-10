@@ -262,23 +262,6 @@ const Signature = () => {
 
   return (
     <Layout>
-      <Helmet>
-        <title>PDF Signature — Verify & Sign PDFs | Free My PDF</title>
-        <meta name="description" content="Verify existing digital signatures or add your own signature to a PDF. Fully client-side and private." />
-        <link rel="canonical" href="https://free-my-pdf.lovable.app/signature" />
-        <meta property="og:title" content="PDF Signature — Verify & Sign PDFs" />
-        <meta property="og:description" content="Verify existing digital signatures or add your own signature to a PDF." />
-        <meta property="og:url" content="https://free-my-pdf.lovable.app/signature" />
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          "name": "Free My PDF Signature",
-          "applicationCategory": "Utility",
-          "operatingSystem": "Any",
-          "url": "https://free-my-pdf.lovable.app/signature",
-          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-        })}</script>
-      </Helmet>
       <div className="relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
