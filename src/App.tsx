@@ -29,6 +29,7 @@ const App = () => (
           <Route path="/merge" element={<Merger />} />
           <Route path="/split" element={<Splitter />} />
           <Route path="/image-to-pdf" element={<ImageToPdf />} />
+          <Route path="/image-compress" element={<ImageCompressor />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
