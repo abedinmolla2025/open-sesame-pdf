@@ -12,7 +12,7 @@ import { usePageHead } from "@/hooks/usePageHead";
 
 type CompressLevel = "low" | "medium" | "high" | "custom";
 type CompressMode = "quality" | "target";
-type TargetSize = 50 | 100 | 150 | 200;
+type TargetPreset = 50 | 100 | 150 | 200 | "custom";
 
 interface CompressResult {
   originalSize: number;
@@ -29,7 +29,7 @@ const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality:
   high: { scale: 1.0, quality: 0.5, label: "High (smallest file)" },
 };
 
-const TARGET_SIZES: TargetSize[] = [50, 100, 150, 200];
+const TARGET_SIZES: Array<Exclude<TargetPreset, "custom">> = [50, 100, 150, 200];
 
 // Descending aggressiveness — tried in order until the output fits the target.
 const TARGET_ATTEMPTS: Array<{ scale: number; quality: number }> = [
