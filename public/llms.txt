@@ -10,4 +10,5 @@ Free My PDF is a privacy-first web app for common PDF tasks. Every operation run
 - [PDF Editor](/editor): Edit text, add whiteout, shapes, images, and annotations directly in the browser.
 - [PDF Compressor](/compress): Reduce PDF file size in the browser with adjustable quality.
 - [PDF Merger](/merge): Combine multiple PDFs into a single document, with drag-and-drop reordering.
+- [PDF Splitter](/split): Split a PDF into individual pages or extract custom page ranges, delivered as a ZIP.
 - [PDF Signature](/signature): Verify existing digital signatures or add your own signature to a PDF.
