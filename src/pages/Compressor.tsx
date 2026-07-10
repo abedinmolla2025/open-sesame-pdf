@@ -21,6 +21,9 @@ interface CompressResult {
   filename: string;
   attempts?: number;
   hitTarget?: boolean;
+  finalScale?: number;
+  finalQuality?: number;
+  mode?: CompressMode;
 }
 
 const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality: number; label: string }> = {
