@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { Lock, Shield, Zap, FileKey } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -8,6 +7,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { UnlockButton } from "@/components/UnlockButton";
 import { UnlockProgress } from "@/components/UnlockProgress";
 import { usePdfUnlocker } from "@/hooks/usePdfUnlocker";
+import { usePageHead } from "@/hooks/usePageHead";
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
