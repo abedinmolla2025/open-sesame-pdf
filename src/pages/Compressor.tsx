@@ -194,7 +194,7 @@ const Compressor = () => {
         attempts = 1;
       }
 
-      const blob = new Blob([finalBytes], { type: "application/pdf" });
+      const blob = new Blob([new Uint8Array(finalBytes)], { type: "application/pdf" });
       const filename = selectedFile.name.replace(/\.pdf$/i, "") + "_compressed.pdf";
 
       setResult({
