@@ -12,7 +12,7 @@ import { usePageHead } from "@/hooks/usePageHead";
 
 type CompressLevel = "low" | "medium" | "high" | "custom";
 type CompressMode = "quality" | "target";
-type TargetSize = 50 | 100 | 150 | 200;
+type TargetPreset = 50 | 100 | 150 | 200 | "custom";
 
 interface CompressResult {
   originalSize: number;
@@ -29,7 +29,7 @@ const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality:
   high: { scale: 1.0, quality: 0.5, label: "High (smallest file)" },
 };
 
-const TARGET_SIZES: TargetSize[] = [50, 100, 150, 200];
+const TARGET_SIZES: Array<Exclude<TargetPreset, "custom">> = [50, 100, 150, 200];
 
 // Descending aggressiveness — tried in order until the output fits the target.
 const TARGET_ATTEMPTS: Array<{ scale: number; quality: number }> = [
@@ -63,7 +63,8 @@ const Compressor = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mode, setMode] = useState<CompressMode>("quality");
   const [level, setLevel] = useState<CompressLevel>("medium");
-  const [targetSize, setTargetSize] = useState<TargetSize>(100);
+  const [targetPreset, setTargetPreset] = useState<TargetPreset>(100);
+  const [customTargetKb, setCustomTargetKb] = useState<number>(300);
   const [customQuality, setCustomQuality] = useState(70);
   const [customScale, setCustomScale] = useState(125);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -158,14 +159,18 @@ const Compressor = () => {
       let hitTarget = true;
 
       if (mode === "target") {
-        const targetBytes = targetSize * 1024;
+        const targetKb =
+          targetPreset === "custom"
+            ? Math.max(10, Math.floor(customTargetKb || 0))
+            : targetPreset;
+        const targetBytes = targetKb * 1024;
         let best: Uint8Array | null = null;
 
         for (let idx = 0; idx < TARGET_ATTEMPTS.length; idx++) {
           attempts = idx + 1;
           const attempt = TARGET_ATTEMPTS[idx];
           setStatusText(
-            `Attempt ${attempts}/${TARGET_ATTEMPTS.length} — targeting ${targetSize} KB`
+            `Attempt ${attempts}/${TARGET_ATTEMPTS.length} — targeting ${targetKb} KB`
           );
           const bytes = await buildPdf(srcPdf, attempt, (done, total) => {
             const attemptFrac = done / total;
@@ -207,9 +212,11 @@ const Compressor = () => {
       });
 
       if (mode === "target" && !hitTarget) {
+        const shownKb =
+          targetPreset === "custom" ? Math.max(10, Math.floor(customTargetKb || 0)) : targetPreset;
         toast({
           title: "Target not fully reached",
-          description: `Smallest possible: ${formatBytes(blob.size)} (target ${targetSize} KB). Try a larger target.`,
+          description: `Smallest possible: ${formatBytes(blob.size)} (target ${shownKb} KB). Try a larger target.`,
         });
       } else {
         toast({
@@ -228,7 +235,7 @@ const Compressor = () => {
       setIsProcessing(false);
       setStatusText("");
     }
-  }, [selectedFile, mode, level, targetSize, customQuality, customScale, buildPdf, toast]);
+  }, [selectedFile, mode, level, targetPreset, customTargetKb, customQuality, customScale, buildPdf, toast]);
 
   const download = useCallback(() => {
     if (!result) return;
@@ -329,9 +336,9 @@ const Compressor = () => {
                           <button
                             key={size}
                             type="button"
-                            onClick={() => setTargetSize(size)}
+                            onClick={() => setTargetPreset(size)}
                             className={`h-14 rounded-lg border text-sm font-semibold transition-all ${
-                              targetSize === size
+                              targetPreset === size
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border hover:border-primary/50 text-foreground"
                             }`}
@@ -340,6 +347,35 @@ const Compressor = () => {
                           </button>
                         ))}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setTargetPreset("custom")}
+                        className={`w-full h-12 rounded-lg border text-sm font-semibold transition-all ${
+                          targetPreset === "custom"
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50 text-foreground"
+                        }`}
+                      >
+                        Custom size
+                      </button>
+                      {targetPreset === "custom" && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                          <Label htmlFor="custom-target-kb" className="shrink-0 text-sm">
+                            Target
+                          </Label>
+                          <input
+                            id="custom-target-kb"
+                            type="number"
+                            inputMode="numeric"
+                            min={10}
+                            step={10}
+                            value={customTargetKb}
+                            onChange={(e) => setCustomTargetKb(Number(e.target.value))}
+                            className="flex-1 h-10 px-3 rounded-md bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <span className="shrink-0 text-sm text-muted-foreground">KB</span>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         We'll re-compress the PDF until it fits under your target. Very large PDFs may not reach the smallest sizes without heavy quality loss.
                       </p>
