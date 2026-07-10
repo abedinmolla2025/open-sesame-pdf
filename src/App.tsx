@@ -9,6 +9,7 @@ import Editor from "./pages/Editor";
 import Compressor from "./pages/Compressor";
 import Merger from "./pages/Merger";
 import Splitter from "./pages/Splitter";
+import ImageToPdf from "./pages/ImageToPdf";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
