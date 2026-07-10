@@ -102,7 +102,7 @@ const Compressor = () => {
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+        await page.render({ canvasContext: ctx, viewport } as Parameters<typeof page.render>[0]).promise;
 
         const jpegBlob: Blob = await new Promise((resolve, reject) =>
           canvas.toBlob(
