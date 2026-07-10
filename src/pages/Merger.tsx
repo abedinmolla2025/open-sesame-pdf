@@ -14,6 +14,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
+import { partitionValidPdfs } from "@/lib/pdfValidation";
 
 interface QueuedFile {
   id: string;
@@ -61,21 +62,28 @@ const Merger = () => {
   const { toast } = useToast();
 
   const addFiles = useCallback(
-    (incoming: FileList | File[]) => {
-      const pdfs = Array.from(incoming).filter(
-        (f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name)
-      );
-      if (pdfs.length === 0) {
+    async (incoming: FileList | File[]) => {
+      const { valid, invalid } = await partitionValidPdfs(Array.from(incoming));
+
+      if (invalid.length > 0) {
+        const preview = invalid.slice(0, 3).map((i) => `• ${i.reason}`).join("\n");
+        const more =
+          invalid.length > 3 ? `\n…and ${invalid.length - 3} more invalid file(s).` : "";
         toast({
-          title: "No PDF files",
-          description: "Please select .pdf files only.",
+          title:
+            invalid.length === 1
+              ? "1 file rejected"
+              : `${invalid.length} files rejected`,
+          description: `${preview}${more}`,
           variant: "destructive",
         });
-        return;
       }
+
+      if (valid.length === 0) return;
+
       setFiles((prev) => [
         ...prev,
-        ...pdfs.map((file) => ({
+        ...valid.map((file) => ({
           id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
           file,
         })),
@@ -84,6 +92,7 @@ const Merger = () => {
     },
     [toast]
   );
+
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

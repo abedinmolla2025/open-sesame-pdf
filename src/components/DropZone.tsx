@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, X } from "lucide-react";
+import { validatePdfFile } from "@/lib/pdfValidation";
+import { useToast } from "@/hooks/use-toast";
 
 interface DropZoneProps {
   onFileSelect: (file: File) => void;
@@ -10,6 +12,23 @@ interface DropZoneProps {
 
 export const DropZone = ({ onFileSelect, selectedFile, onClear }: DropZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const { toast } = useToast();
+
+  const acceptFile = useCallback(
+    async (file: File) => {
+      const result = await validatePdfFile(file);
+      if (!result.ok) {
+        toast({
+          title: "Invalid PDF file",
+          description: result.reason ?? "This file is not a valid PDF.",
+          variant: "destructive",
+        });
+        return;
+      }
+      onFileSelect(file);
+    },
+    [onFileSelect, toast]
+  );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -30,27 +49,29 @@ export const DropZone = ({ onFileSelect, selectedFile, onClear }: DropZoneProps)
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === "application/pdf") {
-        onFileSelect(file);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        void acceptFile(e.dataTransfer.files[0]);
       }
-    }
-  }, [onFileSelect]);
+    },
+    [acceptFile]
+  );
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      if (file.type === "application/pdf") {
-        onFileSelect(file);
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        void acceptFile(e.target.files[0]);
       }
-    }
-  }, [onFileSelect]);
+      // Allow re-selecting the same file after a rejection.
+      e.target.value = "";
+    },
+    [acceptFile]
+  );
 
   return (
     <div className="w-full">
