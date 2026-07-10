@@ -68,30 +68,30 @@ export const EditorToolbar = ({
       {/* Single compact row */}
       <div className="bg-card border border-border rounded-xl p-1.5 flex items-center gap-1">
         {/* Undo/Redo */}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onUndo} disabled={!canUndo}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onUndo} disabled={!canUndo} aria-label="Undo">
           <Undo2 className="w-3.5 h-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRedo} disabled={!canRedo}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRedo} disabled={!canRedo} aria-label="Redo">
           <Redo2 className="w-3.5 h-3.5" />
         </Button>
 
         <Separator orientation="vertical" className="h-5" />
 
         {/* Page nav */}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPrevPage} disabled={currentPage === 0}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPrevPage} disabled={currentPage === 0} aria-label="Previous page">
           <ChevronLeft className="w-3.5 h-3.5" />
         </Button>
-        <span className="text-[11px] font-medium min-w-[40px] text-center">{currentPage + 1}/{totalPages}</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNextPage} disabled={currentPage === totalPages - 1}>
+        <span className="text-[11px] font-medium min-w-[40px] text-center" aria-label={`Page ${currentPage + 1} of ${totalPages}`}>{currentPage + 1}/{totalPages}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNextPage} disabled={currentPage === totalPages - 1} aria-label="Next page">
           <ChevronRight className="w-3.5 h-3.5" />
         </Button>
 
         <Separator orientation="vertical" className="h-5" />
 
         {/* Zoom */}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onZoomOut}><ZoomOut className="w-3.5 h-3.5" /></Button>
-        <span className="text-[11px] font-medium min-w-[32px] text-center">{Math.round(scale * 100)}%</span>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onZoomIn}><ZoomIn className="w-3.5 h-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onZoomOut} aria-label="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></Button>
+        <span className="text-[11px] font-medium min-w-[32px] text-center" aria-label={`Zoom ${Math.round(scale * 100)} percent`}>{Math.round(scale * 100)}%</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onZoomIn} aria-label="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></Button>
 
         <Separator orientation="vertical" className="h-5" />
 
@@ -110,11 +110,11 @@ export const EditorToolbar = ({
         <div className="flex-1" />
 
         {/* Page actions */}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRotatePage}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRotatePage} aria-label="Rotate page">
           <RotateCw className="w-3.5 h-3.5" />
         </Button>
         {totalPages > 1 && (
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onDeletePage}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onDeletePage} aria-label="Delete page">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         )}
