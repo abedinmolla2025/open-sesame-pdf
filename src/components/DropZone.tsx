@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, X } from "lucide-react";
+import { validatePdfFile } from "@/lib/pdfValidation";
+import { useToast } from "@/hooks/use-toast";
 
 interface DropZoneProps {
   onFileSelect: (file: File) => void;
