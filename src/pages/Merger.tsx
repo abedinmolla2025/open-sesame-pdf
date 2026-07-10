@@ -14,6 +14,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
+import { partitionValidPdfs } from "@/lib/pdfValidation";
 
 interface QueuedFile {
   id: string;
