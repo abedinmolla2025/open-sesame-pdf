@@ -295,34 +295,85 @@ const Compressor = () => {
                   animate={{ opacity: 1, height: "auto" }}
                   className="space-y-6"
                 >
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Compression level</Label>
-                    <RadioGroup
-                      value={level}
-                      onValueChange={(v) => setLevel(v as CompressLevel)}
-                      className="space-y-2"
+                  {/* Mode tabs */}
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted/40 border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setMode("quality")}
+                      className={`h-9 rounded-md text-sm font-medium transition-colors ${
+                        mode === "quality"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      {(Object.keys(LEVELS) as Array<keyof typeof LEVELS>).map((key) => (
-                        <label
-                          key={key}
-                          htmlFor={`level-${key}`}
-                          className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
-                        >
-                          <RadioGroupItem id={`level-${key}`} value={key} />
-                          <span className="text-sm">{LEVELS[key].label}</span>
-                        </label>
-                      ))}
-                      <label
-                        htmlFor="level-custom"
-                        className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
-                      >
-                        <RadioGroupItem id="level-custom" value="custom" />
-                        <span className="text-sm">Custom</span>
-                      </label>
-                    </RadioGroup>
+                      By quality
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode("target")}
+                      className={`h-9 rounded-md text-sm font-medium transition-colors ${
+                        mode === "target"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      By target size
+                    </button>
                   </div>
 
-                  {level === "custom" && (
+                  {mode === "target" ? (
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Target file size</Label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {TARGET_SIZES.map((size) => (
+                          <button
+                            key={size}
+                            type="button"
+                            onClick={() => setTargetSize(size)}
+                            className={`h-14 rounded-lg border text-sm font-semibold transition-all ${
+                              targetSize === size
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border hover:border-primary/50 text-foreground"
+                            }`}
+                          >
+                            {size} KB
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        We'll re-compress the PDF until it fits under your target. Very large PDFs may not reach the smallest sizes without heavy quality loss.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Compression level</Label>
+                      <RadioGroup
+                        value={level}
+                        onValueChange={(v) => setLevel(v as CompressLevel)}
+                        className="space-y-2"
+                      >
+                        {(Object.keys(LEVELS) as Array<keyof typeof LEVELS>).map((key) => (
+                          <label
+                            key={key}
+                            htmlFor={`level-${key}`}
+                            className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
+                          >
+                            <RadioGroupItem id={`level-${key}`} value={key} />
+                            <span className="text-sm">{LEVELS[key].label}</span>
+                          </label>
+                        ))}
+                        <label
+                          htmlFor="level-custom"
+                          className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
+                        >
+                          <RadioGroupItem id="level-custom" value="custom" />
+                          <span className="text-sm">Custom</span>
+                        </label>
+                      </RadioGroup>
+                    </div>
+                  )}
+
+                  {mode === "quality" && level === "custom" && (
                     <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -356,7 +407,7 @@ const Compressor = () => {
                   {isProcessing && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Compressing…</span>
+                        <span>{statusText || "Compressing…"}</span>
                         <span>{progress}%</span>
                       </div>
                       <div className="h-2 rounded-full bg-secondary overflow-hidden">
