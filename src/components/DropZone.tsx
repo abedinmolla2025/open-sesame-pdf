@@ -76,6 +76,7 @@ export const DropZone = ({ onFileSelect, selectedFile, onClear }: DropZoneProps)
             </div>
             <button
               onClick={onClear}
+              aria-label="Remove selected file"
               className="w-10 h-10 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors"
             >
               <X className="w-5 h-5 text-muted-foreground" />

@@ -1,0 +1,11 @@
+# Free My PDF
+
+> Free client-side PDF toolkit: unlock password-protected PDFs, edit text, and add digital signatures — all processed in the browser, nothing uploaded.
+
+Free My PDF is a privacy-first web app for common PDF tasks. Every operation runs 100% in the user's browser using pdf-lib and pdfjs-dist, so files never leave the device.
+
+## Pages
+
+- [Unlock PDF](/): Remove password protection from PDF files instantly, client-side.
+- [PDF Editor](/editor): Edit text, add whiteout, shapes, images, and annotations directly in the browser.
+- [PDF Signature](/signature): Verify existing digital signatures or add your own signature to a PDF.
