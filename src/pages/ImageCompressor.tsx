@@ -190,6 +190,59 @@ const ImageCompressor = () => {
     [addFiles]
   );
 
+  // Paste-from-clipboard: capture image blobs anywhere on the page, but skip
+  // when the focus is inside an editable input so text pastes still work.
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null): boolean => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el.isContentEditable
+      );
+    };
+
+    const onPaste = (e: ClipboardEvent) => {
+      if (isEditable(e.target)) return;
+      const items = e.clipboardData?.items;
+      if (!items || items.length === 0) return;
+
+      const pasted: File[] = [];
+      let index = 0;
+      for (const item of Array.from(items)) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (!file.type.startsWith("image/")) continue;
+        // Clipboard images often arrive as "image.png" with a timestamp — give
+        // them a nicer, unique name so multiple pastes don't collide.
+        const ext = file.type.split("/")[1] || "png";
+        const stamped = new File(
+          [file],
+          `pasted-${Date.now()}-${index++}.${ext}`,
+          { type: file.type, lastModified: Date.now() }
+        );
+        pasted.push(stamped);
+      }
+
+      if (pasted.length === 0) return;
+      e.preventDefault();
+      addFiles(pasted);
+      setJustPasted(true);
+      window.setTimeout(() => setJustPasted(false), 1500);
+      toast({
+        title: pasted.length === 1 ? "Image pasted" : `${pasted.length} images pasted`,
+        description: "Added from your clipboard.",
+      });
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [addFiles, toast]);
+
+
   const removeImage = useCallback((id: string) => {
     setImages((prev) => {
       const target = prev.find((p) => p.id === id);
