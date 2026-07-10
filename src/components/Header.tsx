@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors } from "lucide-react";
+import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors, FileImage } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
