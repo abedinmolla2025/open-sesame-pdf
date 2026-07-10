@@ -9,6 +9,7 @@ import Editor from "./pages/Editor";
 import Compressor from "./pages/Compressor";
 import Merger from "./pages/Merger";
 import Splitter from "./pages/Splitter";
+import ImageToPdf from "./pages/ImageToPdf";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/compress" element={<Compressor />} />
           <Route path="/merge" element={<Merger />} />
           <Route path="/split" element={<Splitter />} />
+          <Route path="/image-to-pdf" element={<ImageToPdf />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
