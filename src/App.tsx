@@ -25,6 +25,7 @@ const App = () => (
           <Route path="/editor" element={<Editor />} />
           <Route path="/compress" element={<Compressor />} />
           <Route path="/merge" element={<Merger />} />
+          <Route path="/split" element={<Splitter />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
