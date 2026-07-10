@@ -53,23 +53,6 @@ const Index = () => {
 
   return (
     <Layout>
-      <Helmet>
-        <title>Unlock PDF — Free My PDF</title>
-        <meta name="description" content="Remove password protection from PDF files instantly in your browser. 100% client-side — your files never leave your device." />
-        <link rel="canonical" href="https://free-my-pdf.lovable.app/" />
-        <meta property="og:title" content="Unlock PDF — Free My PDF" />
-        <meta property="og:description" content="Remove password protection from PDF files instantly in your browser." />
-        <meta property="og:url" content="https://free-my-pdf.lovable.app/" />
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          "name": "Free My PDF Unlocker",
-          "applicationCategory": "Utility",
-          "operatingSystem": "Any",
-          "url": "https://free-my-pdf.lovable.app/",
-          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-        })}</script>
-      </Helmet>
       <div className="relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
