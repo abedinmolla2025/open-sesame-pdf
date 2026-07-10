@@ -63,7 +63,8 @@ const Compressor = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mode, setMode] = useState<CompressMode>("quality");
   const [level, setLevel] = useState<CompressLevel>("medium");
-  const [targetSize, setTargetSize] = useState<TargetSize>(100);
+  const [targetPreset, setTargetPreset] = useState<TargetPreset>(100);
+  const [customTargetKb, setCustomTargetKb] = useState<number>(300);
   const [customQuality, setCustomQuality] = useState(70);
   const [customScale, setCustomScale] = useState(125);
   const [isProcessing, setIsProcessing] = useState(false);
