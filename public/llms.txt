@@ -12,4 +12,5 @@ Free My PDF is a privacy-first web app for common PDF tasks. Every operation run
 - [PDF Merger](/merge): Combine multiple PDFs into a single document, with drag-and-drop reordering.
 - [PDF Splitter](/split): Split a PDF into individual pages or extract custom page ranges, delivered as a ZIP.
 - [Image to PDF](/image-to-pdf): Convert and combine JPG, PNG, and WebP images into a single PDF with A4/Letter/auto-fit page sizing.
+- [Image Compressor](/image-compress): Shrink JPG, PNG, and WebP images with adjustable quality, dimension caps, and format conversion.
 - [PDF Signature](/signature): Verify existing digital signatures or add your own signature to a PDF.
