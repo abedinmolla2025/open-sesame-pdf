@@ -61,11 +61,14 @@ const Compressor = () => {
   });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mode, setMode] = useState<CompressMode>("quality");
   const [level, setLevel] = useState<CompressLevel>("medium");
+  const [targetSize, setTargetSize] = useState<TargetSize>(100);
   const [customQuality, setCustomQuality] = useState(70);
   const [customScale, setCustomScale] = useState(125);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState("");
   const [result, setResult] = useState<CompressResult | null>(null);
   const { toast } = useToast();
 
@@ -81,43 +84,26 @@ const Compressor = () => {
     setProgress(0);
   }, []);
 
-  const compress = useCallback(async () => {
-    if (!selectedFile) return;
-
-    setIsProcessing(true);
-    setResult(null);
-    setProgress(0);
-
-    try {
-      const settings =
-        level === "custom"
-          ? { scale: customScale / 100, quality: customQuality / 100 }
-          : { scale: LEVELS[level].scale, quality: LEVELS[level].quality };
-
-      const originalBuffer = await selectedFile.arrayBuffer();
-
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
-
+  const buildPdf = useCallback(
+    async (
+      srcPdf: import("pdfjs-dist").PDFDocumentProxy,
+      settings: { scale: number; quality: number },
+      onPageProgress?: (done: number, total: number) => void
+    ): Promise<Uint8Array> => {
       const { PDFDocument } = await import("pdf-lib");
-
-      const loadingTask = pdfjsLib.getDocument({ data: originalBuffer.slice(0) });
-      const srcPdf = await loadingTask.promise;
-      const totalPages = srcPdf.numPages;
-
       const outPdf = await PDFDocument.create();
+      const totalPages = srcPdf.numPages;
 
       for (let i = 1; i <= totalPages; i++) {
         const page = await srcPdf.getPage(i);
         const viewport = page.getViewport({ scale: settings.scale });
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
+        canvas.width = Math.max(1, Math.floor(viewport.width));
+        canvas.height = Math.max(1, Math.floor(viewport.height));
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Canvas context unavailable");
 
-        // white background so JPEG (no alpha) looks correct
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -133,7 +119,6 @@ const Compressor = () => {
         const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
         const embedded = await outPdf.embedJpg(jpegBytes);
 
-        // Preserve original page size in PDF points
         const origViewport = page.getViewport({ scale: 1 });
         const outPage = outPdf.addPage([origViewport.width, origViewport.height]);
         outPage.drawImage(embedded, {
@@ -143,12 +128,73 @@ const Compressor = () => {
           height: origViewport.height,
         });
 
-        setProgress(Math.round((i / totalPages) * 100));
+        onPageProgress?.(i, totalPages);
       }
 
-      const outBytes = await outPdf.save({ useObjectStreams: true });
-      const blob = new Blob([new Uint8Array(outBytes)], { type: "application/pdf" });
+      return await outPdf.save({ useObjectStreams: true });
+    },
+    []
+  );
 
+  const compress = useCallback(async () => {
+    if (!selectedFile) return;
+
+    setIsProcessing(true);
+    setResult(null);
+    setProgress(0);
+    setStatusText("");
+
+    try {
+      const originalBuffer = await selectedFile.arrayBuffer();
+
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
+
+      const loadingTask = pdfjsLib.getDocument({ data: originalBuffer.slice(0) });
+      const srcPdf = await loadingTask.promise;
+
+      let finalBytes: Uint8Array;
+      let attempts = 0;
+      let hitTarget = true;
+
+      if (mode === "target") {
+        const targetBytes = targetSize * 1024;
+        let best: Uint8Array | null = null;
+
+        for (let idx = 0; idx < TARGET_ATTEMPTS.length; idx++) {
+          attempts = idx + 1;
+          const attempt = TARGET_ATTEMPTS[idx];
+          setStatusText(
+            `Attempt ${attempts}/${TARGET_ATTEMPTS.length} — targeting ${targetSize} KB`
+          );
+          const bytes = await buildPdf(srcPdf, attempt, (done, total) => {
+            const attemptFrac = done / total;
+            const overall = ((idx + attemptFrac) / TARGET_ATTEMPTS.length) * 100;
+            setProgress(Math.round(overall));
+          });
+          best = bytes;
+          if (bytes.byteLength <= targetBytes) {
+            break;
+          }
+        }
+
+        if (!best) throw new Error("Compression produced no output");
+        finalBytes = best;
+        hitTarget = finalBytes.byteLength <= targetBytes;
+        setProgress(100);
+      } else {
+        const settings =
+          level === "custom"
+            ? { scale: customScale / 100, quality: customQuality / 100 }
+            : { scale: LEVELS[level].scale, quality: LEVELS[level].quality };
+        setStatusText("Compressing…");
+        finalBytes = await buildPdf(srcPdf, settings, (done, total) => {
+          setProgress(Math.round((done / total) * 100));
+        });
+        attempts = 1;
+      }
+
+      const blob = new Blob([finalBytes], { type: "application/pdf" });
       const filename = selectedFile.name.replace(/\.pdf$/i, "") + "_compressed.pdf";
 
       setResult({
@@ -156,12 +202,21 @@ const Compressor = () => {
         compressedSize: blob.size,
         blob,
         filename,
+        attempts,
+        hitTarget: mode === "target" ? hitTarget : undefined,
       });
 
-      toast({
-        title: "Compression complete",
-        description: `Reduced ${formatBytes(selectedFile.size)} → ${formatBytes(blob.size)}`,
-      });
+      if (mode === "target" && !hitTarget) {
+        toast({
+          title: "Target not fully reached",
+          description: `Smallest possible: ${formatBytes(blob.size)} (target ${targetSize} KB). Try a larger target.`,
+        });
+      } else {
+        toast({
+          title: "Compression complete",
+          description: `Reduced ${formatBytes(selectedFile.size)} → ${formatBytes(blob.size)}`,
+        });
+      }
     } catch (err) {
       console.error(err);
       toast({
@@ -171,8 +226,9 @@ const Compressor = () => {
       });
     } finally {
       setIsProcessing(false);
+      setStatusText("");
     }
-  }, [selectedFile, level, customQuality, customScale, toast]);
+  }, [selectedFile, mode, level, targetSize, customQuality, customScale, buildPdf, toast]);
 
   const download = useCallback(() => {
     if (!result) return;
