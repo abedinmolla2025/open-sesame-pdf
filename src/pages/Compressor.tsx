@@ -502,6 +502,34 @@ const Compressor = () => {
                         <p className="font-semibold text-primary">{savings}%</p>
                       </div>
                     </div>
+                    {(result.finalScale !== undefined || result.attempts !== undefined) && (
+                      <div className="mt-4 pt-4 border-t border-primary/20 grid grid-cols-3 gap-3 text-center">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Attempts</p>
+                          <p className="text-sm font-semibold">
+                            {result.attempts ?? 1}
+                            {result.mode === "target" ? ` / ${TARGET_ATTEMPTS.length}` : ""}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Quality</p>
+                          <p className="text-sm font-semibold">
+                            {Math.round((result.finalQuality ?? 0) * 100)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Resolution</p>
+                          <p className="text-sm font-semibold">
+                            {Math.round((result.finalScale ?? 0) * 100)}%
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {result.mode === "target" && result.hitTarget === false && (
+                      <p className="mt-3 text-xs text-center text-muted-foreground">
+                        Target not fully reached — this is the smallest achievable size.
+                      </p>
+                    )}
                   </div>
                   <Button
                     onClick={download}
