@@ -112,6 +112,7 @@ const ImageCompressor = () => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
   const [results, setResults] = useState<CompressedItem[] | null>(null);
+  const [justPasted, setJustPasted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -188,6 +189,59 @@ const ImageCompressor = () => {
     },
     [addFiles]
   );
+
+  // Paste-from-clipboard: capture image blobs anywhere on the page, but skip
+  // when the focus is inside an editable input so text pastes still work.
+  useEffect(() => {
+    const isEditable = (el: EventTarget | null): boolean => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el.isContentEditable
+      );
+    };
+
+    const onPaste = (e: ClipboardEvent) => {
+      if (isEditable(e.target)) return;
+      const items = e.clipboardData?.items;
+      if (!items || items.length === 0) return;
+
+      const pasted: File[] = [];
+      let index = 0;
+      for (const item of Array.from(items)) {
+        if (item.kind !== "file") continue;
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (!file.type.startsWith("image/")) continue;
+        // Clipboard images often arrive as "image.png" with a timestamp — give
+        // them a nicer, unique name so multiple pastes don't collide.
+        const ext = file.type.split("/")[1] || "png";
+        const stamped = new File(
+          [file],
+          `pasted-${Date.now()}-${index++}.${ext}`,
+          { type: file.type, lastModified: Date.now() }
+        );
+        pasted.push(stamped);
+      }
+
+      if (pasted.length === 0) return;
+      e.preventDefault();
+      addFiles(pasted);
+      setJustPasted(true);
+      window.setTimeout(() => setJustPasted(false), 1500);
+      toast({
+        title: pasted.length === 1 ? "Image pasted" : `${pasted.length} images pasted`,
+        description: "Added from your clipboard.",
+      });
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [addFiles, toast]);
+
 
   const removeImage = useCallback((id: string) => {
     setImages((prev) => {
@@ -394,6 +448,8 @@ const ImageCompressor = () => {
                   ${
                     isDragging
                       ? "border-primary bg-primary/10 scale-[1.02]"
+                      : justPasted
+                      ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50 bg-card/50 hover:bg-card/80"
                   }
                 `}
@@ -410,12 +466,12 @@ const ImageCompressor = () => {
                   <div
                     className={`
                       w-14 h-14 rounded-2xl flex items-center justify-center transition-colors
-                      ${isDragging ? "bg-primary/30" : "bg-secondary"}
+                      ${isDragging || justPasted ? "bg-primary/30" : "bg-secondary"}
                     `}
                   >
                     <Upload
                       className={`w-7 h-7 ${
-                        isDragging ? "text-primary" : "text-muted-foreground"
+                        isDragging || justPasted ? "text-primary" : "text-muted-foreground"
                       }`}
                     />
                   </div>
@@ -423,12 +479,18 @@ const ImageCompressor = () => {
                     <p className="text-base font-medium text-foreground mb-1">
                       {isDragging
                         ? "Drop your images here"
+                        : justPasted
+                        ? "Pasted from clipboard"
                         : images.length > 0
                         ? "Add more images"
-                        : "Drag & drop images here"}
+                        : "Drag, drop, or paste images here"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      JPG, PNG, WebP — you can select multiple files
+                      JPG, PNG, WebP — click to browse, drag files in, or press{" "}
+                      <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">
+                        Ctrl / ⌘ + V
+                      </kbd>{" "}
+                      to paste
                     </p>
                   </div>
                 </div>
