@@ -11,12 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 
 type CompressLevel = "low" | "medium" | "high" | "custom";
+type CompressMode = "quality" | "target";
+type TargetSize = 50 | 100 | 150 | 200;
 
 interface CompressResult {
   originalSize: number;
   compressedSize: number;
   blob: Blob;
   filename: string;
+  attempts?: number;
+  hitTarget?: boolean;
 }
 
 const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality: number; label: string }> = {
@@ -24,6 +28,21 @@ const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality:
   medium: { scale: 1.25, quality: 0.7, label: "Medium (recommended)" },
   high: { scale: 1.0, quality: 0.5, label: "High (smallest file)" },
 };
+
+const TARGET_SIZES: TargetSize[] = [50, 100, 150, 200];
+
+// Descending aggressiveness — tried in order until the output fits the target.
+const TARGET_ATTEMPTS: Array<{ scale: number; quality: number }> = [
+  { scale: 1.5, quality: 0.85 },
+  { scale: 1.35, quality: 0.75 },
+  { scale: 1.2, quality: 0.65 },
+  { scale: 1.05, quality: 0.55 },
+  { scale: 0.9, quality: 0.45 },
+  { scale: 0.75, quality: 0.35 },
+  { scale: 0.6, quality: 0.28 },
+  { scale: 0.5, quality: 0.22 },
+  { scale: 0.4, quality: 0.18 },
+];
 
 const Compressor = () => {
   usePageHead({
@@ -42,11 +61,14 @@ const Compressor = () => {
   });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mode, setMode] = useState<CompressMode>("quality");
   const [level, setLevel] = useState<CompressLevel>("medium");
+  const [targetSize, setTargetSize] = useState<TargetSize>(100);
   const [customQuality, setCustomQuality] = useState(70);
   const [customScale, setCustomScale] = useState(125);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState("");
   const [result, setResult] = useState<CompressResult | null>(null);
   const { toast } = useToast();
 
@@ -62,43 +84,26 @@ const Compressor = () => {
     setProgress(0);
   }, []);
 
-  const compress = useCallback(async () => {
-    if (!selectedFile) return;
-
-    setIsProcessing(true);
-    setResult(null);
-    setProgress(0);
-
-    try {
-      const settings =
-        level === "custom"
-          ? { scale: customScale / 100, quality: customQuality / 100 }
-          : { scale: LEVELS[level].scale, quality: LEVELS[level].quality };
-
-      const originalBuffer = await selectedFile.arrayBuffer();
-
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
-
+  const buildPdf = useCallback(
+    async (
+      srcPdf: import("pdfjs-dist").PDFDocumentProxy,
+      settings: { scale: number; quality: number },
+      onPageProgress?: (done: number, total: number) => void
+    ): Promise<Uint8Array> => {
       const { PDFDocument } = await import("pdf-lib");
-
-      const loadingTask = pdfjsLib.getDocument({ data: originalBuffer.slice(0) });
-      const srcPdf = await loadingTask.promise;
-      const totalPages = srcPdf.numPages;
-
       const outPdf = await PDFDocument.create();
+      const totalPages = srcPdf.numPages;
 
       for (let i = 1; i <= totalPages; i++) {
         const page = await srcPdf.getPage(i);
         const viewport = page.getViewport({ scale: settings.scale });
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
+        canvas.width = Math.max(1, Math.floor(viewport.width));
+        canvas.height = Math.max(1, Math.floor(viewport.height));
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Canvas context unavailable");
 
-        // white background so JPEG (no alpha) looks correct
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -114,7 +119,6 @@ const Compressor = () => {
         const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
         const embedded = await outPdf.embedJpg(jpegBytes);
 
-        // Preserve original page size in PDF points
         const origViewport = page.getViewport({ scale: 1 });
         const outPage = outPdf.addPage([origViewport.width, origViewport.height]);
         outPage.drawImage(embedded, {
@@ -124,12 +128,73 @@ const Compressor = () => {
           height: origViewport.height,
         });
 
-        setProgress(Math.round((i / totalPages) * 100));
+        onPageProgress?.(i, totalPages);
       }
 
-      const outBytes = await outPdf.save({ useObjectStreams: true });
-      const blob = new Blob([new Uint8Array(outBytes)], { type: "application/pdf" });
+      return await outPdf.save({ useObjectStreams: true });
+    },
+    []
+  );
 
+  const compress = useCallback(async () => {
+    if (!selectedFile) return;
+
+    setIsProcessing(true);
+    setResult(null);
+    setProgress(0);
+    setStatusText("");
+
+    try {
+      const originalBuffer = await selectedFile.arrayBuffer();
+
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
+
+      const loadingTask = pdfjsLib.getDocument({ data: originalBuffer.slice(0) });
+      const srcPdf = await loadingTask.promise;
+
+      let finalBytes: Uint8Array;
+      let attempts = 0;
+      let hitTarget = true;
+
+      if (mode === "target") {
+        const targetBytes = targetSize * 1024;
+        let best: Uint8Array | null = null;
+
+        for (let idx = 0; idx < TARGET_ATTEMPTS.length; idx++) {
+          attempts = idx + 1;
+          const attempt = TARGET_ATTEMPTS[idx];
+          setStatusText(
+            `Attempt ${attempts}/${TARGET_ATTEMPTS.length} — targeting ${targetSize} KB`
+          );
+          const bytes = await buildPdf(srcPdf, attempt, (done, total) => {
+            const attemptFrac = done / total;
+            const overall = ((idx + attemptFrac) / TARGET_ATTEMPTS.length) * 100;
+            setProgress(Math.round(overall));
+          });
+          best = bytes;
+          if (bytes.byteLength <= targetBytes) {
+            break;
+          }
+        }
+
+        if (!best) throw new Error("Compression produced no output");
+        finalBytes = best;
+        hitTarget = finalBytes.byteLength <= targetBytes;
+        setProgress(100);
+      } else {
+        const settings =
+          level === "custom"
+            ? { scale: customScale / 100, quality: customQuality / 100 }
+            : { scale: LEVELS[level].scale, quality: LEVELS[level].quality };
+        setStatusText("Compressing…");
+        finalBytes = await buildPdf(srcPdf, settings, (done, total) => {
+          setProgress(Math.round((done / total) * 100));
+        });
+        attempts = 1;
+      }
+
+      const blob = new Blob([new Uint8Array(finalBytes)], { type: "application/pdf" });
       const filename = selectedFile.name.replace(/\.pdf$/i, "") + "_compressed.pdf";
 
       setResult({
@@ -137,12 +202,21 @@ const Compressor = () => {
         compressedSize: blob.size,
         blob,
         filename,
+        attempts,
+        hitTarget: mode === "target" ? hitTarget : undefined,
       });
 
-      toast({
-        title: "Compression complete",
-        description: `Reduced ${formatBytes(selectedFile.size)} → ${formatBytes(blob.size)}`,
-      });
+      if (mode === "target" && !hitTarget) {
+        toast({
+          title: "Target not fully reached",
+          description: `Smallest possible: ${formatBytes(blob.size)} (target ${targetSize} KB). Try a larger target.`,
+        });
+      } else {
+        toast({
+          title: "Compression complete",
+          description: `Reduced ${formatBytes(selectedFile.size)} → ${formatBytes(blob.size)}`,
+        });
+      }
     } catch (err) {
       console.error(err);
       toast({
@@ -152,8 +226,9 @@ const Compressor = () => {
       });
     } finally {
       setIsProcessing(false);
+      setStatusText("");
     }
-  }, [selectedFile, level, customQuality, customScale, toast]);
+  }, [selectedFile, mode, level, targetSize, customQuality, customScale, buildPdf, toast]);
 
   const download = useCallback(() => {
     if (!result) return;
@@ -220,34 +295,85 @@ const Compressor = () => {
                   animate={{ opacity: 1, height: "auto" }}
                   className="space-y-6"
                 >
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Compression level</Label>
-                    <RadioGroup
-                      value={level}
-                      onValueChange={(v) => setLevel(v as CompressLevel)}
-                      className="space-y-2"
+                  {/* Mode tabs */}
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted/40 border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setMode("quality")}
+                      className={`h-9 rounded-md text-sm font-medium transition-colors ${
+                        mode === "quality"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      {(Object.keys(LEVELS) as Array<keyof typeof LEVELS>).map((key) => (
-                        <label
-                          key={key}
-                          htmlFor={`level-${key}`}
-                          className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
-                        >
-                          <RadioGroupItem id={`level-${key}`} value={key} />
-                          <span className="text-sm">{LEVELS[key].label}</span>
-                        </label>
-                      ))}
-                      <label
-                        htmlFor="level-custom"
-                        className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
-                      >
-                        <RadioGroupItem id="level-custom" value="custom" />
-                        <span className="text-sm">Custom</span>
-                      </label>
-                    </RadioGroup>
+                      By quality
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode("target")}
+                      className={`h-9 rounded-md text-sm font-medium transition-colors ${
+                        mode === "target"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      By target size
+                    </button>
                   </div>
 
-                  {level === "custom" && (
+                  {mode === "target" ? (
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Target file size</Label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {TARGET_SIZES.map((size) => (
+                          <button
+                            key={size}
+                            type="button"
+                            onClick={() => setTargetSize(size)}
+                            className={`h-14 rounded-lg border text-sm font-semibold transition-all ${
+                              targetSize === size
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border hover:border-primary/50 text-foreground"
+                            }`}
+                          >
+                            {size} KB
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        We'll re-compress the PDF until it fits under your target. Very large PDFs may not reach the smallest sizes without heavy quality loss.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Compression level</Label>
+                      <RadioGroup
+                        value={level}
+                        onValueChange={(v) => setLevel(v as CompressLevel)}
+                        className="space-y-2"
+                      >
+                        {(Object.keys(LEVELS) as Array<keyof typeof LEVELS>).map((key) => (
+                          <label
+                            key={key}
+                            htmlFor={`level-${key}`}
+                            className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
+                          >
+                            <RadioGroupItem id={`level-${key}`} value={key} />
+                            <span className="text-sm">{LEVELS[key].label}</span>
+                          </label>
+                        ))}
+                        <label
+                          htmlFor="level-custom"
+                          className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 cursor-pointer"
+                        >
+                          <RadioGroupItem id="level-custom" value="custom" />
+                          <span className="text-sm">Custom</span>
+                        </label>
+                      </RadioGroup>
+                    </div>
+                  )}
+
+                  {mode === "quality" && level === "custom" && (
                     <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -281,7 +407,7 @@ const Compressor = () => {
                   {isProcessing && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Compressing…</span>
+                        <span>{statusText || "Compressing…"}</span>
                         <span>{progress}%</span>
                       </div>
                       <div className="h-2 rounded-full bg-secondary overflow-hidden">
