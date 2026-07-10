@@ -28,7 +28,7 @@ export const usePdfUnlocker = () => {
       const pdfjsLib = await import("pdfjs-dist");
       
       // Set the worker source for PDF.js
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
 
       // Step 1: Use PDF.js to decrypt the password-protected PDF
       console.log("Loading PDF with password...");
