@@ -343,6 +343,7 @@ const Signature = () => {
                           animate={{ opacity: 1, y: 0 }}
                           className="space-y-4"
                         >
+                          <h2 className="sr-only">Verification results</h2>
                           {/* Main status card */}
                           <div className={`p-5 rounded-xl border ${
                             verifyResult.isFullyVerified 
