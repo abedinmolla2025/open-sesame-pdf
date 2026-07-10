@@ -21,6 +21,9 @@ interface CompressResult {
   filename: string;
   attempts?: number;
   hitTarget?: boolean;
+  finalScale?: number;
+  finalQuality?: number;
+  mode?: CompressMode;
 }
 
 const LEVELS: Record<Exclude<CompressLevel, "custom">, { scale: number; quality: number; label: string }> = {
@@ -157,6 +160,8 @@ const Compressor = () => {
       let finalBytes: Uint8Array;
       let attempts = 0;
       let hitTarget = true;
+      let finalScale = 0;
+      let finalQuality = 0;
 
       if (mode === "target") {
         const targetKb =
@@ -165,6 +170,7 @@ const Compressor = () => {
             : targetPreset;
         const targetBytes = targetKb * 1024;
         let best: Uint8Array | null = null;
+        let bestAttempt = TARGET_ATTEMPTS[0];
 
         for (let idx = 0; idx < TARGET_ATTEMPTS.length; idx++) {
           attempts = idx + 1;
@@ -178,6 +184,7 @@ const Compressor = () => {
             setProgress(Math.round(overall));
           });
           best = bytes;
+          bestAttempt = attempt;
           if (bytes.byteLength <= targetBytes) {
             break;
           }
@@ -185,6 +192,8 @@ const Compressor = () => {
 
         if (!best) throw new Error("Compression produced no output");
         finalBytes = best;
+        finalScale = bestAttempt.scale;
+        finalQuality = bestAttempt.quality;
         hitTarget = finalBytes.byteLength <= targetBytes;
         setProgress(100);
       } else {
@@ -197,6 +206,8 @@ const Compressor = () => {
           setProgress(Math.round((done / total) * 100));
         });
         attempts = 1;
+        finalScale = settings.scale;
+        finalQuality = settings.quality;
       }
 
       const blob = new Blob([new Uint8Array(finalBytes)], { type: "application/pdf" });
@@ -209,7 +220,11 @@ const Compressor = () => {
         filename,
         attempts,
         hitTarget: mode === "target" ? hitTarget : undefined,
+        finalScale,
+        finalQuality,
+        mode,
       });
+
 
       if (mode === "target" && !hitTarget) {
         const shownKb =
@@ -487,6 +502,34 @@ const Compressor = () => {
                         <p className="font-semibold text-primary">{savings}%</p>
                       </div>
                     </div>
+                    {(result.finalScale !== undefined || result.attempts !== undefined) && (
+                      <div className="mt-4 pt-4 border-t border-primary/20 grid grid-cols-3 gap-3 text-center">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Attempts</p>
+                          <p className="text-sm font-semibold">
+                            {result.attempts ?? 1}
+                            {result.mode === "target" ? ` / ${TARGET_ATTEMPTS.length}` : ""}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Quality</p>
+                          <p className="text-sm font-semibold">
+                            {Math.round((result.finalQuality ?? 0) * 100)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Resolution</p>
+                          <p className="text-sm font-semibold">
+                            {Math.round((result.finalScale ?? 0) * 100)}%
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {result.mode === "target" && result.hitTarget === false && (
+                      <p className="mt-3 text-xs text-center text-muted-foreground">
+                        Target not fully reached — this is the smallest achievable size.
+                      </p>
+                    )}
                   </div>
                   <Button
                     onClick={download}
