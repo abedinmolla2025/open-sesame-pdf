@@ -10,6 +10,7 @@ import Compressor from "./pages/Compressor";
 import Merger from "./pages/Merger";
 import Splitter from "./pages/Splitter";
 import ImageToPdf from "./pages/ImageToPdf";
+import ImageCompressor from "./pages/ImageCompressor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
