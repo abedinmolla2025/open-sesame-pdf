@@ -448,6 +448,8 @@ const ImageCompressor = () => {
                   ${
                     isDragging
                       ? "border-primary bg-primary/10 scale-[1.02]"
+                      : justPasted
+                      ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50 bg-card/50 hover:bg-card/80"
                   }
                 `}
@@ -464,12 +466,12 @@ const ImageCompressor = () => {
                   <div
                     className={`
                       w-14 h-14 rounded-2xl flex items-center justify-center transition-colors
-                      ${isDragging ? "bg-primary/30" : "bg-secondary"}
+                      ${isDragging || justPasted ? "bg-primary/30" : "bg-secondary"}
                     `}
                   >
                     <Upload
                       className={`w-7 h-7 ${
-                        isDragging ? "text-primary" : "text-muted-foreground"
+                        isDragging || justPasted ? "text-primary" : "text-muted-foreground"
                       }`}
                     />
                   </div>
@@ -477,12 +479,18 @@ const ImageCompressor = () => {
                     <p className="text-base font-medium text-foreground mb-1">
                       {isDragging
                         ? "Drop your images here"
+                        : justPasted
+                        ? "Pasted from clipboard"
                         : images.length > 0
                         ? "Add more images"
-                        : "Drag & drop images here"}
+                        : "Drag, drop, or paste images here"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      JPG, PNG, WebP — you can select multiple files
+                      JPG, PNG, WebP — click to browse, drag files in, or press{" "}
+                      <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">
+                        Ctrl / ⌘ + V
+                      </kbd>{" "}
+                      to paste
                     </p>
                   </div>
                 </div>
