@@ -9,4 +9,5 @@ Free My PDF is a privacy-first web app for common PDF tasks. Every operation run
 - [Unlock PDF](/): Remove password protection from PDF files instantly, client-side.
 - [PDF Editor](/editor): Edit text, add whiteout, shapes, images, and annotations directly in the browser.
 - [PDF Compressor](/compress): Reduce PDF file size in the browser with adjustable quality.
+- [PDF Merger](/merge): Combine multiple PDFs into a single document, with drag-and-drop reordering.
 - [PDF Signature](/signature): Verify existing digital signatures or add your own signature to a PDF.
