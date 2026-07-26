@@ -152,6 +152,142 @@ const PassportPhoto = () => {
     drawPhoto(ctx, PREVIEW_W, PREVIEW_H);
   }, [drawPhoto, PREVIEW_W, PREVIEW_H]);
 
+  // ---- Alignment guide overlay ----
+  useEffect(() => {
+    const canvas = guideRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = PREVIEW_W * ratio;
+    canvas.height = PREVIEW_H * ratio;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+    if (!showGuides) return;
+
+    const w = PREVIEW_W;
+    const h = PREVIEW_H;
+    const crownY = preset.crown * h;
+    const chinY = preset.chin * h;
+    const eyeY = preset.eye * h;
+    const headW = (chinY - crownY) * 0.72;
+
+    // Dim everything outside the safe area
+    const marginX = w * 0.08;
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.fillRect(0, 0, marginX, h);
+    ctx.fillRect(w - marginX, 0, marginX, h);
+
+    // Head oval
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(w / 2, (crownY + chinY) / 2, headW / 2, (chinY - crownY) / 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const line = (y: number, label: string, colour: string) => {
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = colour;
+      ctx.font = "10px system-ui, sans-serif";
+      ctx.textBaseline = y < 14 ? "top" : "bottom";
+      ctx.fillText(label, 6, y < 14 ? y + 3 : y - 3);
+    };
+
+    line(crownY, "TOP OF HEAD", "rgba(255,255,255,0.9)");
+    line(eyeY, "EYE LINE", "rgba(255,205,90,0.95)");
+    line(chinY, "CHIN", "rgba(255,255,255,0.9)");
+
+    // Centre line
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }, [showGuides, preset, PREVIEW_W, PREVIEW_H]);
+
+  // ---- Snapping ----
+  const applyAnchor = useCallback(
+    (anchor: { u: number; crownV: number; chinV: number }, p: Preset) => {
+      if (!image) return;
+      const w = PREVIEW_W;
+      const h = Math.round(PREVIEW_W / (p.wMm / p.hMm));
+      const baseScale = Math.max(w / image.width, h / image.height);
+      const headV = anchor.chinV - anchor.crownV;
+      if (headV <= 0) return;
+      const scale = ((p.chin - p.crown) * h) / headV;
+      const y0 = p.crown * h - anchor.crownV * scale;
+      const x0 = w / 2 - anchor.u * scale;
+      setZoom(scale / baseScale);
+      setOffset({
+        x: (x0 - (w - image.width * scale) / 2) / w,
+        y: (y0 - (h - image.height * scale) / 2) / h,
+      });
+      setCrownF(p.crown);
+      setChinF(p.chin);
+    },
+    [image, PREVIEW_W]
+  );
+
+  const snapToGuide = () => {
+    if (!image) return;
+    const w = PREVIEW_W;
+    const h = PREVIEW_H;
+    const baseScale = Math.max(w / image.width, h / image.height);
+    const scale = baseScale * zoom;
+    const x0 = (w - image.width * scale) / 2 + offset.x * w;
+    const y0 = (h - image.height * scale) / 2 + offset.y * h;
+    const anchor = {
+      u: (w / 2 - x0) / scale,
+      crownV: (crownF * h - y0) / scale,
+      chinV: (chinF * h - y0) / scale,
+    };
+    if (anchor.chinV - anchor.crownV <= 0) {
+      toast({ title: "Adjust the markers", description: "Place the chin marker below the head marker.", variant: "destructive" });
+      return;
+    }
+    anchorRef.current = anchor;
+    applyAnchor(anchor, preset);
+    toast({ title: "Cropped to guide", description: `Head sized for ${preset.label}.` });
+  };
+
+  // Re-snap whenever the preset changes, once the head has been marked
+  useEffect(() => {
+    if (anchorRef.current) applyAnchor(anchorRef.current, preset);
+    else {
+      setCrownF(preset.crown);
+      setChinF(preset.chin);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetId]);
+
+  const onMarkerDown = (which: "crown" | "chin") => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    markerDrag.current = { which, startY: e.clientY, startF: which === "crown" ? crownF : chinF };
+  };
+  const onMarkerMove = (e: React.PointerEvent) => {
+    const m = markerDrag.current;
+    if (!m) return;
+    e.stopPropagation();
+    const next = Math.min(1, Math.max(0, m.startF + (e.clientY - m.startY) / PREVIEW_H));
+    if (m.which === "crown") setCrownF(Math.min(next, chinF - 0.05));
+    else setChinF(Math.max(next, crownF + 0.05));
+  };
+  const onMarkerUp = () => {
+    markerDrag.current = null;
+  };
+
+
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (!image) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
