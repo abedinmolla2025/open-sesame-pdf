@@ -47,13 +47,20 @@ async function detectNative(img: HTMLImageElement): Promise<FaceAnchor | null> {
     // Native boxes roughly span brow -> chin; extend upwards for hair/crown.
     const chinV = box.y + box.height * 1.02;
     const crownV = box.y - box.height * 0.42;
+    const areaFrac = (box.width * box.height) / (img.width * img.height);
+    let confidence = 0.95;
+    if (faces.length > 1) confidence -= 0.1;
+    if (areaFrac < 0.02) confidence -= 0.2;
+    else if (areaFrac < 0.05) confidence -= 0.08;
     return {
       u: box.x + box.width / 2,
       crownV: Math.max(0, crownV),
       chinV: Math.min(img.height, chinV),
       eyeV: box.y + box.height * 0.42,
       source: "native",
+      confidence: Math.min(0.98, Math.max(0.5, confidence)),
     };
+
   } catch {
     return null;
   }
