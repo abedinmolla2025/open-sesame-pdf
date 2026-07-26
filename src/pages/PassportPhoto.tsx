@@ -37,9 +37,15 @@ const PRESETS: Preset[] = [
 const BG_COLORS = [
   { id: "white", label: "White", value: "#ffffff" },
   { id: "offwhite", label: "Off white", value: "#f2f2f2" },
+  { id: "cream", label: "Cream", value: "#f7f1e3" },
   { id: "lightblue", label: "Light blue", value: "#cfe0f5" },
+  { id: "skyblue", label: "Sky blue", value: "#9ec7ec" },
+  { id: "royalblue", label: "Royal blue", value: "#3b6fb6" },
   { id: "grey", label: "Grey", value: "#d9d9d9" },
+  { id: "darkgrey", label: "Dark grey", value: "#8a8a8a" },
+  { id: "red", label: "Red", value: "#d64545" },
 ];
+
 
 const MM_PER_INCH = 25.4;
 const SHEET_W_MM = 152.4; // 6 inch
@@ -659,6 +665,7 @@ const PassportPhoto = () => {
                         key={c.id}
                         onClick={() => setBg(c.value)}
                         aria-label={`Background ${c.label}`}
+                        title={c.label}
                         style={{ backgroundColor: c.value }}
                         className={cn(
                           "w-9 h-9 rounded-lg border-2 transition-transform",
@@ -674,10 +681,48 @@ const PassportPhoto = () => {
                       className="w-14 h-9 p-1 cursor-pointer"
                     />
                   </div>
+
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium flex items-center gap-1.5">
+                        <Eraser className="w-3.5 h-3.5" />
+                        {bgRemoved ? "Background removed" : "Original background"}
+                      </span>
+                      {bgRemoved && (
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={restoreBackground}>
+                          Undo
+                        </Button>
+                      )}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full gap-2"
+                      disabled={removingBg || bgRemoved}
+                      onClick={removeBg}
+                    >
+                      {removingBg ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Removing… {bgProgress}%
+                        </>
+                      ) : (
+                        <>
+                          <Eraser className="w-4 h-4" /> Remove background
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      {bgRemoved
+                        ? "Pick any colour above — it now fills the whole photo behind you."
+                        : "Runs in your browser (first run downloads the model, ~10–20 s). Then choose a colour above."}
+                    </p>
+                  </div>
+
                   <p className="text-xs text-muted-foreground">
                     Background shows around the photo — zoom out or reposition to reveal it.
                   </p>
                 </div>
+
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
