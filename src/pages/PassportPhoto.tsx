@@ -1154,7 +1154,57 @@ const PassportPhoto = () => {
                     No photo fits — reduce the margin or spacing.
                   </p>
                 )}
+
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="copies" className="text-sm">
+                      Number of photos
+                    </Label>
+                    <Input
+                      id="copies"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={copies}
+                      onChange={(e) =>
+                        setCopies(Math.min(500, Math.max(1, Number(e.target.value) || 1)))
+                      }
+                      className="w-24 h-9"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[4, 8, 12, 24, sheetCount || 1].map((n, i) => (
+                      <button
+                        key={`${n}-${i}`}
+                        onClick={() => setCopies(n)}
+                        className="rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted/50"
+                      >
+                        {i === 4 ? `Full sheet (${n})` : n}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {sheetCount > 0
+                      ? `${sheetCount} per page — ${pdfPages} page${pdfPages > 1 ? "s" : ""} of ${sheet.label}.`
+                      : "No photo fits with the current margins."}
+                  </p>
+                  <Button
+                    onClick={downloadPdf}
+                    className="w-full gap-2"
+                    disabled={sheetCount < 1 || pdfBusy}
+                  >
+                    {pdfBusy ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    {pdfBusy
+                      ? "Building PDF…"
+                      : `Download PDF (${copies} photos, ${pdfPages} page${pdfPages > 1 ? "s" : ""})`}
+                  </Button>
+                </div>
               </div>
+
 
 
             </div>
