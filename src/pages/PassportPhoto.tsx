@@ -69,15 +69,24 @@ const PassportPhoto = () => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  const [showGuides, setShowGuides] = useState(true);
+  // Head markers, as fractions of the crop height
+  const [crownF, setCrownF] = useState(0.12);
+  const [chinF, setChinF] = useState(0.72);
 
   const previewRef = useRef<HTMLCanvasElement>(null);
+  const guideRef = useRef<HTMLCanvasElement>(null);
   const dragState = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const markerDrag = useRef<{ which: "crown" | "chin"; startY: number; startF: number } | null>(null);
+  /** Head position in image pixel coordinates, captured on the last snap */
+  const anchorRef = useRef<{ u: number; crownV: number; chinV: number } | null>(null);
 
   const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
   const aspect = preset.wMm / preset.hMm;
 
   const PREVIEW_W = 320;
   const PREVIEW_H = Math.round(PREVIEW_W / aspect);
+
 
   const loadFile = useCallback(
     (file: File) => {
