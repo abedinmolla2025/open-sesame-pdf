@@ -107,6 +107,8 @@ const PassportPhoto = () => {
         setZoom(1);
         setOffset({ x: 0, y: 0 });
         anchorRef.current = null;
+        setAutoDetected(false);
+
         setCrownF(preset.crown);
         setChinF(preset.chin);
         URL.revokeObjectURL(url);
