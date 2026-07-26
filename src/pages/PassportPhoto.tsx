@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
-import { detectFace } from "@/lib/faceDetect";
+import { detectFace, type FaceAnchor } from "@/lib/faceDetect";
 
 
 interface Preset {
@@ -77,6 +77,8 @@ const PassportPhoto = () => {
   const [chinF, setChinF] = useState(0.72);
   const [detecting, setDetecting] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
+  const [detection, setDetection] = useState<FaceAnchor | null>(null);
+
 
 
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -108,6 +110,8 @@ const PassportPhoto = () => {
         setOffset({ x: 0, y: 0 });
         anchorRef.current = null;
         setAutoDetected(false);
+        setDetection(null);
+
 
         setCrownF(preset.crown);
         setChinF(preset.chin);
@@ -253,6 +257,7 @@ const PassportPhoto = () => {
         const face = await detectFace(img);
         if (!face) {
           setAutoDetected(false);
+          setDetection(null);
           if (!silent) {
             toast({
               title: "No face detected",
@@ -266,7 +271,13 @@ const PassportPhoto = () => {
         anchorRef.current = anchor;
         applyAnchor(anchor, preset, img);
         setAutoDetected(true);
-        if (!silent) toast({ title: "Face detected", description: "Guide pre-positioned — snap or fine-tune." });
+        setDetection(face);
+        if (!silent)
+          toast({
+            title: "Face detected",
+            description: `${face.source === "native" ? "Native face detector" : "Skin-tone fallback"} — ${Math.round(face.confidence * 100)}% confidence.`,
+          });
+
         return true;
       } finally {
         setDetecting(false);
@@ -528,15 +539,52 @@ const PassportPhoto = () => {
                   );
                 })}
               </div>
+              {/* Detection status + confidence meter */}
+              <div className="w-full rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <ScanFace className="w-3.5 h-3.5" />
+                    {detecting ? "Detecting face…" : detection ? "Face detected" : "No face detected"}
+                  </span>
+                  {detection && (
+                    <span className="tabular-nums text-muted-foreground">
+                      {Math.round(detection.confidence * 100)}%
+                    </span>
+                  )}
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                  <motion.div
+                    className={cn(
+                      "h-full rounded-full",
+                      !detection
+                        ? "bg-destructive/70"
+                        : detection.confidence >= 0.7
+                          ? "bg-primary"
+                          : detection.confidence >= 0.45
+                            ? "bg-amber-400"
+                            : "bg-destructive"
+                    )}
+                    initial={false}
+                    animate={{ width: `${detecting ? 30 : detection ? detection.confidence * 100 : 100}%` }}
+                    transition={{ duration: 0.4 }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {detecting
+                    ? "Scanning the photo…"
+                    : detection
+                      ? detection.source === "native"
+                        ? "Browser face detector (native, high accuracy) — guide pre-positioned."
+                        : "Skin-tone fallback (native detector unavailable) — check the Head / Chin bars before snapping."
+                      : "Automatic detection failed. Drag the Head / Chin bars onto your face, then snap."}
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground text-center">
-                {detecting
-                  ? "Detecting face…"
-                  : autoDetected
-                    ? "Face detected — guide pre-positioned. Fine-tune the bars if needed."
-                    : "Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap"}
+                Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap
                 <br />
                 {preset.wMm} x {preset.hMm} mm @ {dpi} DPI — {preset.spec}
               </p>
+
               <Button onClick={snapToGuide} className="w-full gap-2">
                 <Crosshair className="w-4 h-4" /> Snap crop to guide
               </Button>
