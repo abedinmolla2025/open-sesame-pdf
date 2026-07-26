@@ -113,7 +113,7 @@ const PassportPhoto = () => {
       };
       img.src = url;
     },
-    [toast]
+    [toast, preset.crown, preset.chin]
   );
 
   // Draw a photo of given pixel size onto a canvas context
