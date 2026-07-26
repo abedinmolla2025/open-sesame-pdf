@@ -444,21 +444,58 @@ const PassportPhoto = () => {
           <div className="grid gap-8 lg:grid-cols-[auto,1fr] items-start">
             {/* Preview */}
             <div className="glass-card p-6 flex flex-col items-center gap-4 mx-auto">
-              <canvas
-                ref={previewRef}
-                style={{ width: PREVIEW_W, height: PREVIEW_H }}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-                className={cn(
-                  "rounded-lg border border-border touch-none select-none",
-                  isDragging ? "cursor-grabbing" : "cursor-grab"
-                )}
-              />
-              <p className="text-xs text-muted-foreground">
-                Drag the photo to reposition • {preset.wMm} x {preset.hMm} mm @ {dpi} DPI
+              <div className="relative" style={{ width: PREVIEW_W, height: PREVIEW_H }}>
+                <canvas
+                  ref={previewRef}
+                  style={{ width: PREVIEW_W, height: PREVIEW_H }}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={endDrag}
+                  onPointerCancel={endDrag}
+                  className={cn(
+                    "rounded-lg border border-border touch-none select-none",
+                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                  )}
+                />
+                <canvas
+                  ref={guideRef}
+                  style={{ width: PREVIEW_W, height: PREVIEW_H }}
+                  className="absolute inset-0 rounded-lg pointer-events-none"
+                />
+                {/* Draggable head markers */}
+                {(["crown", "chin"] as const).map((which) => {
+                  const f = which === "crown" ? crownF : chinF;
+                  return (
+                    <div
+                      key={which}
+                      onPointerDown={onMarkerDown(which)}
+                      onPointerMove={onMarkerMove}
+                      onPointerUp={onMarkerUp}
+                      onPointerCancel={onMarkerUp}
+                      style={{ top: f * PREVIEW_H }}
+                      className="absolute left-0 right-0 -translate-y-1/2 h-5 flex items-center cursor-ns-resize touch-none group"
+                    >
+                      <div className="flex-1 h-[2px] bg-primary/80" />
+                      <span className="ml-1 px-1.5 py-0.5 rounded bg-primary text-primary-foreground text-[10px] font-medium">
+                        {which === "crown" ? "Head" : "Chin"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap
+                <br />
+                {preset.wMm} x {preset.hMm} mm @ {dpi} DPI — {preset.spec}
               </p>
+              <Button onClick={snapToGuide} className="w-full gap-2">
+                <Crosshair className="w-4 h-4" /> Snap crop to guide
+              </Button>
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowGuides((s) => !s)}>
+                {showGuides ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showGuides ? "Hide guides" : "Show guides"}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
