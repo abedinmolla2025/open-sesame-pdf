@@ -300,11 +300,17 @@ const PassportPhoto = () => {
     [applyAnchor, preset, toast]
   );
 
-  // Auto-detect as soon as a photo is loaded
+  // Auto-detect as soon as a photo is loaded (not when only the background swaps)
+  const skipDetectRef = useRef(false);
   useEffect(() => {
+    if (skipDetectRef.current) {
+      skipDetectRef.current = false;
+      return;
+    }
     if (image) void runFaceDetection(image, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image]);
+
 
   // ---- Background removal ----
   const removeBg = async () => {
