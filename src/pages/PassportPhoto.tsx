@@ -48,8 +48,6 @@ const BG_COLORS = [
 
 
 const MM_PER_INCH = 25.4;
-const SHEET_W_MM = 152.4; // 6 inch
-const SHEET_H_MM = 101.6; // 4 inch
 
 const SHEETS = [
   { id: "4x6", label: '4x6" photo paper', wMm: 152.4, hMm: 101.6, file: "4x6" },
