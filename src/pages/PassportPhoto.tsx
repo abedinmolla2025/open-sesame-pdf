@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Upload, Download, X, IdCard, ZoomIn, RotateCcw, Crosshair, Eye, EyeOff } from "lucide-react";
+import { Upload, Download, X, IdCard, ZoomIn, RotateCcw, Crosshair, Eye, EyeOff, ScanFace } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
+import { detectFace } from "@/lib/faceDetect";
+
 
 interface Preset {
   id: string;
@@ -73,6 +75,9 @@ const PassportPhoto = () => {
   // Head markers, as fractions of the crop height
   const [crownF, setCrownF] = useState(0.12);
   const [chinF, setChinF] = useState(0.72);
+  const [detecting, setDetecting] = useState(false);
+  const [autoDetected, setAutoDetected] = useState(false);
+
 
   const previewRef = useRef<HTMLCanvasElement>(null);
   const guideRef = useRef<HTMLCanvasElement>(null);
@@ -102,6 +107,8 @@ const PassportPhoto = () => {
         setZoom(1);
         setOffset({ x: 0, y: 0 });
         anchorRef.current = null;
+        setAutoDetected(false);
+
         setCrownF(preset.crown);
         setChinF(preset.chin);
         URL.revokeObjectURL(url);
@@ -216,11 +223,12 @@ const PassportPhoto = () => {
 
   // ---- Snapping ----
   const applyAnchor = useCallback(
-    (anchor: { u: number; crownV: number; chinV: number }, p: Preset) => {
-      if (!image) return;
+    (anchor: { u: number; crownV: number; chinV: number }, p: Preset, img?: HTMLImageElement) => {
+      const src = img ?? image;
+      if (!src) return;
       const w = PREVIEW_W;
       const h = Math.round(PREVIEW_W / (p.wMm / p.hMm));
-      const baseScale = Math.max(w / image.width, h / image.height);
+      const baseScale = Math.max(w / src.width, h / src.height);
       const headV = anchor.chinV - anchor.crownV;
       if (headV <= 0) return;
       const scale = ((p.chin - p.crown) * h) / headV;
@@ -228,14 +236,50 @@ const PassportPhoto = () => {
       const x0 = w / 2 - anchor.u * scale;
       setZoom(scale / baseScale);
       setOffset({
-        x: (x0 - (w - image.width * scale) / 2) / w,
-        y: (y0 - (h - image.height * scale) / 2) / h,
+        x: (x0 - (w - src.width * scale) / 2) / w,
+        y: (y0 - (h - src.height * scale) / 2) / h,
       });
       setCrownF(p.crown);
       setChinF(p.chin);
     },
     [image, PREVIEW_W]
   );
+
+
+  const runFaceDetection = useCallback(
+    async (img: HTMLImageElement, silent = false) => {
+      setDetecting(true);
+      try {
+        const face = await detectFace(img);
+        if (!face) {
+          setAutoDetected(false);
+          if (!silent) {
+            toast({
+              title: "No face detected",
+              description: "Drag the Head / Chin bars onto your face, then snap.",
+              variant: "destructive",
+            });
+          }
+          return false;
+        }
+        const anchor = { u: face.u, crownV: face.crownV, chinV: face.chinV };
+        anchorRef.current = anchor;
+        applyAnchor(anchor, preset, img);
+        setAutoDetected(true);
+        if (!silent) toast({ title: "Face detected", description: "Guide pre-positioned — snap or fine-tune." });
+        return true;
+      } finally {
+        setDetecting(false);
+      }
+    },
+    [applyAnchor, preset, toast]
+  );
+
+  // Auto-detect as soon as a photo is loaded
+  useEffect(() => {
+    if (image) void runFaceDetection(image, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image]);
 
   const snapToGuide = () => {
     if (!image) return;
@@ -258,6 +302,7 @@ const PassportPhoto = () => {
     applyAnchor(anchor, preset);
     toast({ title: "Cropped to guide", description: `Head sized for ${preset.label}.` });
   };
+
 
   // Re-snap whenever the preset changes, once the head has been marked
   useEffect(() => {
@@ -484,13 +529,27 @@ const PassportPhoto = () => {
                 })}
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap
+                {detecting
+                  ? "Detecting face…"
+                  : autoDetected
+                    ? "Face detected — guide pre-positioned. Fine-tune the bars if needed."
+                    : "Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap"}
                 <br />
                 {preset.wMm} x {preset.hMm} mm @ {dpi} DPI — {preset.spec}
               </p>
               <Button onClick={snapToGuide} className="w-full gap-2">
                 <Crosshair className="w-4 h-4" /> Snap crop to guide
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full gap-2"
+                disabled={detecting}
+                onClick={() => image && runFaceDetection(image)}
+              >
+                <ScanFace className="w-4 h-4" /> {detecting ? "Detecting…" : "Auto-detect face"}
+              </Button>
+
               <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowGuides((s) => !s)}>
                 {showGuides ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 {showGuides ? "Hide guides" : "Show guides"}
