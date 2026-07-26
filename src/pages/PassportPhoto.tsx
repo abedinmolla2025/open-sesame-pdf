@@ -623,7 +623,8 @@ const PassportPhoto = () => {
         }
       }
 
-      const blob = new Blob([await pdf.save()], { type: "application/pdf" });
+      const pdfBytes = await pdf.save();
+      const blob = new Blob([pdfBytes.slice().buffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
