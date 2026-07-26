@@ -955,7 +955,7 @@ const PassportPhoto = () => {
                   <p className="text-sm text-muted-foreground">Sheet layout</p>
                   <div className="grid grid-cols-3 gap-2">
                     {SHEETS.map((s) => {
-                      const { cols, rows } = sheetGrid(s);
+                      const { cols, rows } = sheetLayoutMm(s);
                       return (
                         <button
                           key={s.id}
@@ -975,10 +975,93 @@ const PassportPhoto = () => {
                     })}
                   </div>
                 </div>
-                <Button onClick={downloadSheet} variant="outline" className="w-full gap-2">
+
+                <div className="space-y-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Sheet preview</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-2 h-8"
+                      onClick={() => setShowSheetGuides((v) => !v)}
+                    >
+                      {showSheetGuides ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showSheetGuides ? "Hide guides" : "Show guides"}
+                    </Button>
+                  </div>
+                  <div className="flex justify-center rounded-lg bg-muted/30 p-3 overflow-auto">
+                    <canvas ref={sheetPreviewRef} className="rounded shadow-sm" />
+                  </div>
+                  {showSheetGuides && (
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      Red band = printer margin (unprintable), dashed red = safe area, blue = sheet centre.
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <Label>Print margin</Label>
+                      <span className="text-muted-foreground">{marginMm} mm</span>
+                    </div>
+                    <Slider
+                      value={[marginMm]}
+                      min={0}
+                      max={25}
+                      step={1}
+                      onValueChange={(v) => setMarginMm(v[0])}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <Label>Spacing between photos</Label>
+                      <span className="text-muted-foreground">{gapMm} mm</span>
+                    </div>
+                    <Slider
+                      value={[gapMm]}
+                      min={0}
+                      max={15}
+                      step={1}
+                      onValueChange={(v) => setGapMm(v[0])}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "Borderless (0 mm)", m: 0, g: 2 },
+                      { label: "Inkjet (4 mm)", m: 4, g: 3 },
+                      { label: "Laser (6.4 mm)", m: 6.4, g: 3 },
+                      { label: "Safe (10 mm)", m: 10, g: 4 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        onClick={() => {
+                          setMarginMm(p.m);
+                          setGapMm(p.g);
+                        }}
+                        className="rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted/50"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  onClick={downloadSheet}
+                  variant="outline"
+                  className="w-full gap-2"
+                  disabled={sheetCount < 1}
+                >
                   <Download className="w-4 h-4" /> Download {sheet.label} sheet ({sheetCount} photos)
                 </Button>
+                {sheetCount < 1 && (
+                  <p className="text-xs text-destructive text-center">
+                    No photo fits — reduce the margin or spacing.
+                  </p>
+                )}
               </div>
+
 
             </div>
           </div>
