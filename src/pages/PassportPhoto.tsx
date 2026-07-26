@@ -553,6 +553,99 @@ const PassportPhoto = () => {
     return cols * rows;
   })();
 
+  const [copies, setCopies] = useState(8);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfPages = sheetCount > 0 ? Math.ceil(copies / sheetCount) : 0;
+
+  const downloadPdf = async () => {
+    if (!image) return;
+    const { cols, rows } = sheetLayoutMm(sheet);
+    if (cols < 1 || rows < 1) {
+      toast({
+        title: "Margins too large",
+        description: "No photo fits inside the safe area. Reduce the margin or spacing.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPdfBusy(true);
+    try {
+      const { PDFDocument, rgb } = await import("pdf-lib");
+
+      // Render one photo at full export resolution and reuse it on every slot
+      const pw = mmToPx(preset.wMm);
+      const ph = mmToPx(preset.hMm);
+      const cell = document.createElement("canvas");
+      cell.width = pw;
+      cell.height = ph;
+      const cellCtx = cell.getContext("2d");
+      if (!cellCtx) return;
+      drawPhoto(cellCtx, pw, ph);
+      const dataUrl = cell.toDataURL("image/jpeg", 0.95);
+      const bytes = Uint8Array.from(atob(dataUrl.split(",")[1]), (c) => c.charCodeAt(0));
+
+      const pdf = await PDFDocument.create();
+      const jpg = await pdf.embedJpg(bytes);
+
+      const PT = 72 / MM_PER_INCH;
+      const pageW = sheet.wMm * PT;
+      const pageH = sheet.hMm * PT;
+      const cw = preset.wMm * PT;
+      const ch = preset.hMm * PT;
+      const g = gapMm * PT;
+
+      const perPage = cols * rows;
+      const pages = Math.max(1, Math.ceil(copies / perPage));
+      const totalW = cols * cw + (cols - 1) * g;
+      const totalH = rows * ch + (rows - 1) * g;
+      const startX = (pageW - totalW) / 2;
+      const startY = (pageH - totalH) / 2;
+
+      let placed = 0;
+      for (let p = 0; p < pages; p++) {
+        const page = pdf.addPage([pageW, pageH]);
+        for (let r = 0; r < rows && placed < copies; r++) {
+          for (let c = 0; c < cols && placed < copies; c++) {
+            const x = startX + c * (cw + g);
+            // pdf-lib origin is bottom-left
+            const y = pageH - startY - (r + 1) * ch - r * g;
+            page.drawImage(jpg, { x, y, width: cw, height: ch });
+            page.drawRectangle({
+              x,
+              y,
+              width: cw,
+              height: ch,
+              borderColor: rgb(0.78, 0.78, 0.78),
+              borderWidth: 0.4,
+            });
+            placed++;
+          }
+        }
+      }
+
+      const blob = new Blob([await pdf.save()], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileName}-${sheet.file}-${copies}photos-${pages}p.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: "PDF ready",
+        description: `${copies} photos across ${pages} ${sheet.label} page${pages > 1 ? "s" : ""}.`,
+      });
+    } catch (err) {
+      toast({
+        title: "PDF export failed",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+
   // Scaled on-screen preview of the printed sheet with safe-area guides
   useEffect(() => {
     const canvas = sheetPreviewRef.current;
