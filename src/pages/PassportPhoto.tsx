@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Upload, Download, X, IdCard, ZoomIn, RotateCcw } from "lucide-react";
+import { Upload, Download, X, IdCard, ZoomIn, RotateCcw, Crosshair, Eye, EyeOff } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -16,15 +16,21 @@ interface Preset {
   wMm: number;
   hMm: number;
   note: string;
+  /** Fractions of the photo height, measured from the top edge */
+  crown: number;
+  chin: number;
+  eye: number;
+  spec: string;
 }
 
 const PRESETS: Preset[] = [
-  { id: "us", label: 'US / 2" x 2"', wMm: 51, hMm: 51, note: "USA passport & visa" },
-  { id: "in", label: "35 x 45 mm", wMm: 35, hMm: 45, note: "India, EU, UK, AU" },
-  { id: "cn", label: "33 x 48 mm", wMm: 33, hMm: 48, note: "China visa" },
-  { id: "ca", label: "50 x 70 mm", wMm: 50, hMm: 70, note: "Canada passport" },
-  { id: "stamp", label: "20 x 25 mm", wMm: 20, hMm: 25, note: "Stamp size" },
+  { id: "us", label: 'US / 2" x 2"', wMm: 51, hMm: 51, note: "USA passport & visa", crown: 0.12, chin: 0.72, eye: 0.375, spec: "Head 1–1⅜ in (50–69%), eyes 1⅛–1⅜ in from bottom" },
+  { id: "in", label: "35 x 45 mm", wMm: 35, hMm: 45, note: "India, EU, UK, AU", crown: 0.08, chin: 0.835, eye: 0.42, spec: "Head 32–36 mm (ICAO), 3–5 mm above the crown" },
+  { id: "cn", label: "33 x 48 mm", wMm: 33, hMm: 48, note: "China visa", crown: 0.10, chin: 0.746, eye: 0.39, spec: "Head 28–33 mm, 3–5 mm above the crown" },
+  { id: "ca", label: "50 x 70 mm", wMm: 50, hMm: 70, note: "Canada passport", crown: 0.15, chin: 0.63, eye: 0.366, spec: "Head 31–36 mm crown to chin" },
+  { id: "stamp", label: "20 x 25 mm", wMm: 20, hMm: 25, note: "Stamp size", crown: 0.08, chin: 0.835, eye: 0.42, spec: "Head ~80% of height, ICAO framing" },
 ];
+
 
 const BG_COLORS = [
   { id: "white", label: "White", value: "#ffffff" },
@@ -63,15 +69,24 @@ const PassportPhoto = () => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  const [showGuides, setShowGuides] = useState(true);
+  // Head markers, as fractions of the crop height
+  const [crownF, setCrownF] = useState(0.12);
+  const [chinF, setChinF] = useState(0.72);
 
   const previewRef = useRef<HTMLCanvasElement>(null);
+  const guideRef = useRef<HTMLCanvasElement>(null);
   const dragState = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const markerDrag = useRef<{ which: "crown" | "chin"; startY: number; startF: number } | null>(null);
+  /** Head position in image pixel coordinates, captured on the last snap */
+  const anchorRef = useRef<{ u: number; crownV: number; chinV: number } | null>(null);
 
   const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
   const aspect = preset.wMm / preset.hMm;
 
   const PREVIEW_W = 320;
   const PREVIEW_H = Math.round(PREVIEW_W / aspect);
+
 
   const loadFile = useCallback(
     (file: File) => {
@@ -86,15 +101,19 @@ const PassportPhoto = () => {
         setFileName(file.name.replace(/\.[^.]+$/, "") || "photo");
         setZoom(1);
         setOffset({ x: 0, y: 0 });
+        anchorRef.current = null;
+        setCrownF(preset.crown);
+        setChinF(preset.chin);
         URL.revokeObjectURL(url);
       };
+
       img.onerror = () => {
         URL.revokeObjectURL(url);
         toast({ title: "Could not read image", variant: "destructive" });
       };
       img.src = url;
     },
-    [toast]
+    [toast, preset.crown, preset.chin]
   );
 
   // Draw a photo of given pixel size onto a canvas context
@@ -132,6 +151,142 @@ const PassportPhoto = () => {
     ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
     drawPhoto(ctx, PREVIEW_W, PREVIEW_H);
   }, [drawPhoto, PREVIEW_W, PREVIEW_H]);
+
+  // ---- Alignment guide overlay ----
+  useEffect(() => {
+    const canvas = guideRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = PREVIEW_W * ratio;
+    canvas.height = PREVIEW_H * ratio;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+    if (!showGuides) return;
+
+    const w = PREVIEW_W;
+    const h = PREVIEW_H;
+    const crownY = preset.crown * h;
+    const chinY = preset.chin * h;
+    const eyeY = preset.eye * h;
+    const headW = (chinY - crownY) * 0.72;
+
+    // Dim everything outside the safe area
+    const marginX = w * 0.08;
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.fillRect(0, 0, marginX, h);
+    ctx.fillRect(w - marginX, 0, marginX, h);
+
+    // Head oval
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(w / 2, (crownY + chinY) / 2, headW / 2, (chinY - crownY) / 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const line = (y: number, label: string, colour: string) => {
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = colour;
+      ctx.font = "10px system-ui, sans-serif";
+      ctx.textBaseline = y < 14 ? "top" : "bottom";
+      ctx.fillText(label, 6, y < 14 ? y + 3 : y - 3);
+    };
+
+    line(crownY, "TOP OF HEAD", "rgba(255,255,255,0.9)");
+    line(eyeY, "EYE LINE", "rgba(255,205,90,0.95)");
+    line(chinY, "CHIN", "rgba(255,255,255,0.9)");
+
+    // Centre line
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }, [showGuides, preset, PREVIEW_W, PREVIEW_H, image]);
+
+  // ---- Snapping ----
+  const applyAnchor = useCallback(
+    (anchor: { u: number; crownV: number; chinV: number }, p: Preset) => {
+      if (!image) return;
+      const w = PREVIEW_W;
+      const h = Math.round(PREVIEW_W / (p.wMm / p.hMm));
+      const baseScale = Math.max(w / image.width, h / image.height);
+      const headV = anchor.chinV - anchor.crownV;
+      if (headV <= 0) return;
+      const scale = ((p.chin - p.crown) * h) / headV;
+      const y0 = p.crown * h - anchor.crownV * scale;
+      const x0 = w / 2 - anchor.u * scale;
+      setZoom(scale / baseScale);
+      setOffset({
+        x: (x0 - (w - image.width * scale) / 2) / w,
+        y: (y0 - (h - image.height * scale) / 2) / h,
+      });
+      setCrownF(p.crown);
+      setChinF(p.chin);
+    },
+    [image, PREVIEW_W]
+  );
+
+  const snapToGuide = () => {
+    if (!image) return;
+    const w = PREVIEW_W;
+    const h = PREVIEW_H;
+    const baseScale = Math.max(w / image.width, h / image.height);
+    const scale = baseScale * zoom;
+    const x0 = (w - image.width * scale) / 2 + offset.x * w;
+    const y0 = (h - image.height * scale) / 2 + offset.y * h;
+    const anchor = {
+      u: (w / 2 - x0) / scale,
+      crownV: (crownF * h - y0) / scale,
+      chinV: (chinF * h - y0) / scale,
+    };
+    if (anchor.chinV - anchor.crownV <= 0) {
+      toast({ title: "Adjust the markers", description: "Place the chin marker below the head marker.", variant: "destructive" });
+      return;
+    }
+    anchorRef.current = anchor;
+    applyAnchor(anchor, preset);
+    toast({ title: "Cropped to guide", description: `Head sized for ${preset.label}.` });
+  };
+
+  // Re-snap whenever the preset changes, once the head has been marked
+  useEffect(() => {
+    if (anchorRef.current) applyAnchor(anchorRef.current, preset);
+    else {
+      setCrownF(preset.crown);
+      setChinF(preset.chin);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetId]);
+
+  const onMarkerDown = (which: "crown" | "chin") => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    markerDrag.current = { which, startY: e.clientY, startF: which === "crown" ? crownF : chinF };
+  };
+  const onMarkerMove = (e: React.PointerEvent) => {
+    const m = markerDrag.current;
+    if (!m) return;
+    e.stopPropagation();
+    const next = Math.min(1, Math.max(0, m.startF + (e.clientY - m.startY) / PREVIEW_H));
+    if (m.which === "crown") setCrownF(Math.min(next, chinF - 0.05));
+    else setChinF(Math.max(next, crownF + 0.05));
+  };
+  const onMarkerUp = () => {
+    markerDrag.current = null;
+  };
+
+
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!image) return;
@@ -289,21 +444,58 @@ const PassportPhoto = () => {
           <div className="grid gap-8 lg:grid-cols-[auto,1fr] items-start">
             {/* Preview */}
             <div className="glass-card p-6 flex flex-col items-center gap-4 mx-auto">
-              <canvas
-                ref={previewRef}
-                style={{ width: PREVIEW_W, height: PREVIEW_H }}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-                className={cn(
-                  "rounded-lg border border-border touch-none select-none",
-                  isDragging ? "cursor-grabbing" : "cursor-grab"
-                )}
-              />
-              <p className="text-xs text-muted-foreground">
-                Drag the photo to reposition • {preset.wMm} x {preset.hMm} mm @ {dpi} DPI
+              <div className="relative" style={{ width: PREVIEW_W, height: PREVIEW_H }}>
+                <canvas
+                  ref={previewRef}
+                  style={{ width: PREVIEW_W, height: PREVIEW_H }}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={endDrag}
+                  onPointerCancel={endDrag}
+                  className={cn(
+                    "rounded-lg border border-border touch-none select-none",
+                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                  )}
+                />
+                <canvas
+                  ref={guideRef}
+                  style={{ width: PREVIEW_W, height: PREVIEW_H }}
+                  className="absolute inset-0 rounded-lg pointer-events-none"
+                />
+                {/* Draggable head markers */}
+                {(["crown", "chin"] as const).map((which) => {
+                  const f = which === "crown" ? crownF : chinF;
+                  return (
+                    <div
+                      key={which}
+                      onPointerDown={onMarkerDown(which)}
+                      onPointerMove={onMarkerMove}
+                      onPointerUp={onMarkerUp}
+                      onPointerCancel={onMarkerUp}
+                      style={{ top: f * PREVIEW_H }}
+                      className="absolute left-0 right-0 -translate-y-1/2 h-5 flex items-center cursor-ns-resize touch-none group"
+                    >
+                      <div className="flex-1 h-[2px] bg-primary/80" />
+                      <span className="ml-1 px-1.5 py-0.5 rounded bg-primary text-primary-foreground text-[10px] font-medium">
+                        {which === "crown" ? "Head" : "Chin"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap
+                <br />
+                {preset.wMm} x {preset.hMm} mm @ {dpi} DPI — {preset.spec}
               </p>
+              <Button onClick={snapToGuide} className="w-full gap-2">
+                <Crosshair className="w-4 h-4" /> Snap crop to guide
+              </Button>
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowGuides((s) => !s)}>
+                {showGuides ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showGuides ? "Hide guides" : "Show guides"}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -349,7 +541,7 @@ const PassportPhoto = () => {
                     </Label>
                     <span className="text-sm text-muted-foreground">{zoom.toFixed(2)}x</span>
                   </div>
-                  <Slider value={[zoom]} min={1} max={3} step={0.01} onValueChange={(v) => setZoom(v[0])} />
+                  <Slider value={[zoom]} min={0.3} max={4} step={0.01} onValueChange={(v) => setZoom(v[0])} />
                 </div>
 
                 <div className="space-y-3">
@@ -406,6 +598,9 @@ const PassportPhoto = () => {
                   onClick={() => {
                     setZoom(1);
                     setOffset({ x: 0, y: 0 });
+                    anchorRef.current = null;
+                    setCrownF(preset.crown);
+                    setChinF(preset.chin);
                   }}
                 >
                   <RotateCcw className="w-4 h-4" /> Reset framing
