@@ -479,17 +479,24 @@ const PassportPhoto = () => {
     download(canvas, `${preset.wMm}x${preset.hMm}mm`);
   };
 
-  const downloadSheet = () => {
-    if (!image) return;
-    const sheetW = mmToPx(SHEET_W_MM);
-    const sheetH = mmToPx(SHEET_H_MM);
+  const [sheetId, setSheetId] = useState<string>("4x6");
+  const sheet = SHEETS.find((s) => s.id === sheetId) ?? SHEETS[0];
+
+  const sheetGrid = (s: (typeof SHEETS)[number]) => {
     const pw = mmToPx(preset.wMm);
     const ph = mmToPx(preset.hMm);
     const gap = mmToPx(3);
     const margin = mmToPx(4);
-
+    const sheetW = mmToPx(s.wMm);
+    const sheetH = mmToPx(s.hMm);
     const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
     const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
+    return { pw, ph, gap, sheetW, sheetH, cols, rows };
+  };
+
+  const downloadSheet = () => {
+    if (!image) return;
+    const { pw, ph, gap, sheetW, sheetH, cols, rows } = sheetGrid(sheet);
 
     const canvas = document.createElement("canvas");
     canvas.width = sheetW;
@@ -514,20 +521,14 @@ const PassportPhoto = () => {
         ctx.strokeRect(x, y, pw, ph);
       }
     }
-    download(canvas, `sheet-4x6-${cols * rows}up`);
+    download(canvas, `sheet-${sheet.file}-${cols * rows}up`);
   };
 
   const sheetCount = (() => {
-    const pw = mmToPx(preset.wMm);
-    const ph = mmToPx(preset.hMm);
-    const gap = mmToPx(3);
-    const margin = mmToPx(4);
-    const sheetW = mmToPx(SHEET_W_MM);
-    const sheetH = mmToPx(SHEET_H_MM);
-    const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
-    const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
+    const { cols, rows } = sheetGrid(sheet);
     return cols * rows;
   })();
+
 
   return (
     <Layout>
