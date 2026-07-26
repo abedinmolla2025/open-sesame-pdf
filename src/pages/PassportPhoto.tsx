@@ -48,8 +48,12 @@ const BG_COLORS = [
 
 
 const MM_PER_INCH = 25.4;
-const SHEET_W_MM = 152.4; // 6 inch
-const SHEET_H_MM = 101.6; // 4 inch
+
+const SHEETS = [
+  { id: "4x6", label: '4x6" photo paper', wMm: 152.4, hMm: 101.6, file: "4x6" },
+  { id: "a4p", label: "A4 portrait", wMm: 210, hMm: 297, file: "a4-portrait" },
+  { id: "a4l", label: "A4 landscape", wMm: 297, hMm: 210, file: "a4-landscape" },
+] as const;
 
 const PassportPhoto = () => {
   const { toast } = useToast();
@@ -473,17 +477,24 @@ const PassportPhoto = () => {
     download(canvas, `${preset.wMm}x${preset.hMm}mm`);
   };
 
-  const downloadSheet = () => {
-    if (!image) return;
-    const sheetW = mmToPx(SHEET_W_MM);
-    const sheetH = mmToPx(SHEET_H_MM);
+  const [sheetId, setSheetId] = useState<string>("4x6");
+  const sheet = SHEETS.find((s) => s.id === sheetId) ?? SHEETS[0];
+
+  const sheetGrid = (s: (typeof SHEETS)[number]) => {
     const pw = mmToPx(preset.wMm);
     const ph = mmToPx(preset.hMm);
     const gap = mmToPx(3);
     const margin = mmToPx(4);
-
+    const sheetW = mmToPx(s.wMm);
+    const sheetH = mmToPx(s.hMm);
     const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
     const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
+    return { pw, ph, gap, sheetW, sheetH, cols, rows };
+  };
+
+  const downloadSheet = () => {
+    if (!image) return;
+    const { pw, ph, gap, sheetW, sheetH, cols, rows } = sheetGrid(sheet);
 
     const canvas = document.createElement("canvas");
     canvas.width = sheetW;
@@ -508,20 +519,14 @@ const PassportPhoto = () => {
         ctx.strokeRect(x, y, pw, ph);
       }
     }
-    download(canvas, `sheet-4x6-${cols * rows}up`);
+    download(canvas, `sheet-${sheet.file}-${cols * rows}up`);
   };
 
   const sheetCount = (() => {
-    const pw = mmToPx(preset.wMm);
-    const ph = mmToPx(preset.hMm);
-    const gap = mmToPx(3);
-    const margin = mmToPx(4);
-    const sheetW = mmToPx(SHEET_W_MM);
-    const sheetH = mmToPx(SHEET_H_MM);
-    const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
-    const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
+    const { cols, rows } = sheetGrid(sheet);
     return cols * rows;
   })();
+
 
   return (
     <Layout>
@@ -839,10 +844,35 @@ const PassportPhoto = () => {
                 <Button onClick={downloadSingle} className="w-full gap-2">
                   <Download className="w-4 h-4" /> Download single photo
                 </Button>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Sheet layout</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SHEETS.map((s) => {
+                      const { cols, rows } = sheetGrid(s);
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSheetId(s.id)}
+                          className={`rounded-lg border px-2 py-2 text-xs transition-colors ${
+                            sheetId === s.id
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className="block font-medium">{s.label}</span>
+                          <span className="block text-[10px] opacity-70">
+                            {cols * rows} photos
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <Button onClick={downloadSheet} variant="outline" className="w-full gap-2">
-                  <Download className="w-4 h-4" /> Download 4x6" sheet ({sheetCount} photos)
+                  <Download className="w-4 h-4" /> Download {sheet.label} sheet ({sheetCount} photos)
                 </Button>
               </div>
+
             </div>
           </div>
         )}
