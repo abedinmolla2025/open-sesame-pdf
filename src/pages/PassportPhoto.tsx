@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
+import { detectFace } from "@/lib/faceDetect";
+
 
 interface Preset {
   id: string;
@@ -73,6 +75,9 @@ const PassportPhoto = () => {
   // Head markers, as fractions of the crop height
   const [crownF, setCrownF] = useState(0.12);
   const [chinF, setChinF] = useState(0.72);
+  const [detecting, setDetecting] = useState(false);
+  const [autoDetected, setAutoDetected] = useState(false);
+
 
   const previewRef = useRef<HTMLCanvasElement>(null);
   const guideRef = useRef<HTMLCanvasElement>(null);
@@ -216,11 +221,12 @@ const PassportPhoto = () => {
 
   // ---- Snapping ----
   const applyAnchor = useCallback(
-    (anchor: { u: number; crownV: number; chinV: number }, p: Preset) => {
-      if (!image) return;
+    (anchor: { u: number; crownV: number; chinV: number }, p: Preset, img?: HTMLImageElement) => {
+      const src = img ?? image;
+      if (!src) return;
       const w = PREVIEW_W;
       const h = Math.round(PREVIEW_W / (p.wMm / p.hMm));
-      const baseScale = Math.max(w / image.width, h / image.height);
+      const baseScale = Math.max(w / src.width, h / src.height);
       const headV = anchor.chinV - anchor.crownV;
       if (headV <= 0) return;
       const scale = ((p.chin - p.crown) * h) / headV;
@@ -228,14 +234,15 @@ const PassportPhoto = () => {
       const x0 = w / 2 - anchor.u * scale;
       setZoom(scale / baseScale);
       setOffset({
-        x: (x0 - (w - image.width * scale) / 2) / w,
-        y: (y0 - (h - image.height * scale) / 2) / h,
+        x: (x0 - (w - src.width * scale) / 2) / w,
+        y: (y0 - (h - src.height * scale) / 2) / h,
       });
       setCrownF(p.crown);
       setChinF(p.chin);
     },
     [image, PREVIEW_W]
   );
+
 
   const runFaceDetection = useCallback(
     async (img: HTMLImageElement, silent = false) => {
