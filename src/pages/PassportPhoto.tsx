@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Upload, Download, X, IdCard, ZoomIn, RotateCcw, Crosshair, Eye, EyeOff } from "lucide-react";
+import { Upload, Download, X, IdCard, ZoomIn, RotateCcw, Crosshair, Eye, EyeOff, ScanFace } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -527,13 +527,27 @@ const PassportPhoto = () => {
                 })}
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap
+                {detecting
+                  ? "Detecting face…"
+                  : autoDetected
+                    ? "Face detected — guide pre-positioned. Fine-tune the bars if needed."
+                    : "Drag the photo to reposition • drag the Head / Chin bars onto your face, then snap"}
                 <br />
                 {preset.wMm} x {preset.hMm} mm @ {dpi} DPI — {preset.spec}
               </p>
               <Button onClick={snapToGuide} className="w-full gap-2">
                 <Crosshair className="w-4 h-4" /> Snap crop to guide
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full gap-2"
+                disabled={detecting}
+                onClick={() => image && runFaceDetection(image)}
+              >
+                <ScanFace className="w-4 h-4" /> {detecting ? "Detecting…" : "Auto-detect face"}
+              </Button>
+
               <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowGuides((s) => !s)}>
                 {showGuides ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 {showGuides ? "Hide guides" : "Show guides"}
