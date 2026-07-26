@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
-import { detectFace } from "@/lib/faceDetect";
+import { detectFace, type FaceAnchor } from "@/lib/faceDetect";
 
 
 interface Preset {
@@ -77,6 +77,8 @@ const PassportPhoto = () => {
   const [chinF, setChinF] = useState(0.72);
   const [detecting, setDetecting] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
+  const [detection, setDetection] = useState<FaceAnchor | null>(null);
+
 
 
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -108,6 +110,8 @@ const PassportPhoto = () => {
         setOffset({ x: 0, y: 0 });
         anchorRef.current = null;
         setAutoDetected(false);
+        setDetection(null);
+
 
         setCrownF(preset.crown);
         setChinF(preset.chin);
@@ -253,6 +257,7 @@ const PassportPhoto = () => {
         const face = await detectFace(img);
         if (!face) {
           setAutoDetected(false);
+          setDetection(null);
           if (!silent) {
             toast({
               title: "No face detected",
@@ -266,7 +271,13 @@ const PassportPhoto = () => {
         anchorRef.current = anchor;
         applyAnchor(anchor, preset, img);
         setAutoDetected(true);
-        if (!silent) toast({ title: "Face detected", description: "Guide pre-positioned — snap or fine-tune." });
+        setDetection(face);
+        if (!silent)
+          toast({
+            title: "Face detected",
+            description: `${face.source === "native" ? "Native face detector" : "Skin-tone fallback"} — ${Math.round(face.confidence * 100)}% confidence.`,
+          });
+
         return true;
       } finally {
         setDetecting(false);
