@@ -121,6 +121,10 @@ const PassportPhoto = () => {
         anchorRef.current = null;
         setAutoDetected(false);
         setDetection(null);
+        originalImageRef.current = null;
+        setBgRemoved(false);
+        setBgProgress(0);
+
 
 
         setCrownF(preset.crown);
@@ -302,7 +306,65 @@ const PassportPhoto = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image]);
 
+  // ---- Background removal ----
+  const removeBg = async () => {
+    if (!image || removingBg) return;
+    setRemovingBg(true);
+    setBgProgress(0);
+    try {
+      const { removeBackground } = await import("@imgly/background-removal");
+      const src = document.createElement("canvas");
+      src.width = image.naturalWidth || image.width;
+      src.height = image.naturalHeight || image.height;
+      const sctx = src.getContext("2d");
+      if (!sctx) throw new Error("Canvas unavailable");
+      sctx.drawImage(image, 0, 0, src.width, src.height);
+      const inputBlob: Blob = await new Promise((resolve, reject) =>
+        src.toBlob((b) => (b ? resolve(b) : reject(new Error("Encode failed"))), "image/png")
+      );
+
+      const outBlob = await removeBackground(inputBlob, {
+        output: { format: "image/png" },
+        progress: (_key: string, current: number, total: number) => {
+          if (total > 0) setBgProgress(Math.min(99, Math.round((current / total) * 100)));
+        },
+      });
+
+      const url = URL.createObjectURL(outBlob);
+      const cut = new Image();
+      await new Promise<void>((resolve, reject) => {
+        cut.onload = () => resolve();
+        cut.onerror = () => reject(new Error("Could not load result"));
+        cut.src = url;
+      });
+      URL.revokeObjectURL(url);
+      originalImageRef.current = image;
+      setImage(cut);
+      setBgRemoved(true);
+      setBgProgress(100);
+      toast({ title: "Background removed", description: "Pick a background colour to fill behind you." });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Background removal failed",
+        description: err instanceof Error ? err.message : "Please try again with a different photo.",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingBg(false);
+    }
+  };
+
+  const restoreBackground = () => {
+    if (!originalImageRef.current) return;
+    setImage(originalImageRef.current);
+    originalImageRef.current = null;
+    setBgRemoved(false);
+    setBgProgress(0);
+  };
+
   const snapToGuide = () => {
+
     if (!image) return;
     const w = PREVIEW_W;
     const h = PREVIEW_H;
