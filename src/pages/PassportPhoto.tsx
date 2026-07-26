@@ -345,7 +345,9 @@ const PassportPhoto = () => {
       });
       URL.revokeObjectURL(url);
       originalImageRef.current = image;
+      skipDetectRef.current = true;
       setImage(cut);
+
       setBgRemoved(true);
       setBgProgress(100);
       toast({ title: "Background removed", description: "Pick a background colour to fill behind you." });
@@ -363,11 +365,13 @@ const PassportPhoto = () => {
 
   const restoreBackground = () => {
     if (!originalImageRef.current) return;
+    skipDetectRef.current = true;
     setImage(originalImageRef.current);
     originalImageRef.current = null;
     setBgRemoved(false);
     setBgProgress(0);
   };
+
 
   const snapToGuide = () => {
 
