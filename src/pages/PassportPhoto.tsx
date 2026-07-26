@@ -846,10 +846,35 @@ const PassportPhoto = () => {
                 <Button onClick={downloadSingle} className="w-full gap-2">
                   <Download className="w-4 h-4" /> Download single photo
                 </Button>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Sheet layout</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SHEETS.map((s) => {
+                      const { cols, rows } = sheetGrid(s);
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSheetId(s.id)}
+                          className={`rounded-lg border px-2 py-2 text-xs transition-colors ${
+                            sheetId === s.id
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className="block font-medium">{s.label}</span>
+                          <span className="block text-[10px] opacity-70">
+                            {cols * rows} photos
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <Button onClick={downloadSheet} variant="outline" className="w-full gap-2">
-                  <Download className="w-4 h-4" /> Download 4x6" sheet ({sheetCount} photos)
+                  <Download className="w-4 h-4" /> Download {sheet.label} sheet ({sheetCount} photos)
                 </Button>
               </div>
+
             </div>
           </div>
         )}
