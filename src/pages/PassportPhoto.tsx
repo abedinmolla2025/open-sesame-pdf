@@ -16,15 +16,21 @@ interface Preset {
   wMm: number;
   hMm: number;
   note: string;
+  /** Fractions of the photo height, measured from the top edge */
+  crown: number;
+  chin: number;
+  eye: number;
+  spec: string;
 }
 
 const PRESETS: Preset[] = [
-  { id: "us", label: 'US / 2" x 2"', wMm: 51, hMm: 51, note: "USA passport & visa" },
-  { id: "in", label: "35 x 45 mm", wMm: 35, hMm: 45, note: "India, EU, UK, AU" },
-  { id: "cn", label: "33 x 48 mm", wMm: 33, hMm: 48, note: "China visa" },
-  { id: "ca", label: "50 x 70 mm", wMm: 50, hMm: 70, note: "Canada passport" },
-  { id: "stamp", label: "20 x 25 mm", wMm: 20, hMm: 25, note: "Stamp size" },
+  { id: "us", label: 'US / 2" x 2"', wMm: 51, hMm: 51, note: "USA passport & visa", crown: 0.12, chin: 0.72, eye: 0.375, spec: "Head 1–1⅜ in (50–69%), eyes 1⅛–1⅜ in from bottom" },
+  { id: "in", label: "35 x 45 mm", wMm: 35, hMm: 45, note: "India, EU, UK, AU", crown: 0.08, chin: 0.835, eye: 0.42, spec: "Head 32–36 mm (ICAO), 3–5 mm above the crown" },
+  { id: "cn", label: "33 x 48 mm", wMm: 33, hMm: 48, note: "China visa", crown: 0.10, chin: 0.746, eye: 0.39, spec: "Head 28–33 mm, 3–5 mm above the crown" },
+  { id: "ca", label: "50 x 70 mm", wMm: 50, hMm: 70, note: "Canada passport", crown: 0.15, chin: 0.63, eye: 0.366, spec: "Head 31–36 mm crown to chin" },
+  { id: "stamp", label: "20 x 25 mm", wMm: 20, hMm: 25, note: "Stamp size", crown: 0.08, chin: 0.835, eye: 0.42, spec: "Head ~80% of height, ICAO framing" },
 ];
+
 
 const BG_COLORS = [
   { id: "white", label: "White", value: "#ffffff" },
