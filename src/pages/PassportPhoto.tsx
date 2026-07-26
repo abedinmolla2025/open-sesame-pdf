@@ -237,6 +237,41 @@ const PassportPhoto = () => {
     [image, PREVIEW_W]
   );
 
+  const runFaceDetection = useCallback(
+    async (img: HTMLImageElement, silent = false) => {
+      setDetecting(true);
+      try {
+        const face = await detectFace(img);
+        if (!face) {
+          setAutoDetected(false);
+          if (!silent) {
+            toast({
+              title: "No face detected",
+              description: "Drag the Head / Chin bars onto your face, then snap.",
+              variant: "destructive",
+            });
+          }
+          return false;
+        }
+        const anchor = { u: face.u, crownV: face.crownV, chinV: face.chinV };
+        anchorRef.current = anchor;
+        applyAnchor(anchor, preset, img);
+        setAutoDetected(true);
+        if (!silent) toast({ title: "Face detected", description: "Guide pre-positioned — snap or fine-tune." });
+        return true;
+      } finally {
+        setDetecting(false);
+      }
+    },
+    [applyAnchor, preset, toast]
+  );
+
+  // Auto-detect as soon as a photo is loaded
+  useEffect(() => {
+    if (image) void runFaceDetection(image, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image]);
+
   const snapToGuide = () => {
     if (!image) return;
     const w = PREVIEW_W;
@@ -258,6 +293,7 @@ const PassportPhoto = () => {
     applyAnchor(anchor, preset);
     toast({ title: "Cropped to guide", description: `Head sized for ${preset.label}.` });
   };
+
 
   // Re-snap whenever the preset changes, once the head has been marked
   useEffect(() => {
