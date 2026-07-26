@@ -478,23 +478,49 @@ const PassportPhoto = () => {
   };
 
   const [sheetId, setSheetId] = useState<string>("4x6");
+  const [marginMm, setMarginMm] = useState(4);
+  const [gapMm, setGapMm] = useState(3);
+  const [showSheetGuides, setShowSheetGuides] = useState(true);
+  const sheetPreviewRef = useRef<HTMLCanvasElement | null>(null);
   const sheet = SHEETS.find((s) => s.id === sheetId) ?? SHEETS[0];
 
+  const sheetLayoutMm = (s: (typeof SHEETS)[number]) => {
+    const cols = Math.max(
+      0,
+      Math.floor((s.wMm - marginMm * 2 + gapMm) / (preset.wMm + gapMm))
+    );
+    const rows = Math.max(
+      0,
+      Math.floor((s.hMm - marginMm * 2 + gapMm) / (preset.hMm + gapMm))
+    );
+    return { cols, rows };
+  };
+
   const sheetGrid = (s: (typeof SHEETS)[number]) => {
-    const pw = mmToPx(preset.wMm);
-    const ph = mmToPx(preset.hMm);
-    const gap = mmToPx(3);
-    const margin = mmToPx(4);
-    const sheetW = mmToPx(s.wMm);
-    const sheetH = mmToPx(s.hMm);
-    const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
-    const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
-    return { pw, ph, gap, sheetW, sheetH, cols, rows };
+    const { cols, rows } = sheetLayoutMm(s);
+    return {
+      pw: mmToPx(preset.wMm),
+      ph: mmToPx(preset.hMm),
+      gap: mmToPx(gapMm),
+      margin: mmToPx(marginMm),
+      sheetW: mmToPx(s.wMm),
+      sheetH: mmToPx(s.hMm),
+      cols,
+      rows,
+    };
   };
 
   const downloadSheet = () => {
     if (!image) return;
     const { pw, ph, gap, sheetW, sheetH, cols, rows } = sheetGrid(sheet);
+    if (cols < 1 || rows < 1) {
+      toast({
+        title: "Margins too large",
+        description: "No photo fits inside the safe area. Reduce the margin or spacing.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = sheetW;
@@ -523,9 +549,90 @@ const PassportPhoto = () => {
   };
 
   const sheetCount = (() => {
-    const { cols, rows } = sheetGrid(sheet);
+    const { cols, rows } = sheetLayoutMm(sheet);
     return cols * rows;
   })();
+
+  // Scaled on-screen preview of the printed sheet with safe-area guides
+  useEffect(() => {
+    const canvas = sheetPreviewRef.current;
+    if (!canvas) return;
+    const MAX = 380;
+    const scale = MAX / Math.max(sheet.wMm, sheet.hMm);
+    const ratio = window.devicePixelRatio || 1;
+    const w = sheet.wMm * scale;
+    const h = sheet.hMm * scale;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+
+    const m = marginMm * scale;
+    const g = gapMm * scale;
+    const pw = preset.wMm * scale;
+    const ph = preset.hMm * scale;
+    const { cols, rows } = sheetLayoutMm(sheet);
+
+    if (cols > 0 && rows > 0) {
+      const totalW = cols * pw + (cols - 1) * g;
+      const totalH = rows * ph + (rows - 1) * g;
+      const startX = (w - totalW) / 2;
+      const startY = (h - totalH) / 2;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = startX + c * (pw + g);
+          const y = startY + r * (ph + g);
+          drawPhoto(ctx, pw, ph, x, y);
+          ctx.strokeStyle = "#b9b9b9";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, pw, ph);
+        }
+      }
+    }
+
+    if (showSheetGuides) {
+      // dim the non-printable margin band
+      ctx.save();
+      ctx.fillStyle = "rgba(220, 38, 38, 0.14)";
+      ctx.beginPath();
+      ctx.rect(0, 0, w, h);
+      ctx.rect(m, m, Math.max(0, w - m * 2), Math.max(0, h - m * 2));
+      ctx.fill("evenodd");
+      ctx.restore();
+
+      // safe area outline
+      ctx.save();
+      ctx.strokeStyle = "rgba(220, 38, 38, 0.75)";
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(m, m, Math.max(0, w - m * 2), Math.max(0, h - m * 2));
+      ctx.restore();
+
+      // sheet centre lines
+      ctx.save();
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.5)";
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(w / 2, 0);
+      ctx.lineTo(w / 2, h);
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetId, marginMm, gapMm, showSheetGuides, presetId, drawPhoto, image, bg, zoom, offset]);
+
 
 
   return (
@@ -848,7 +955,7 @@ const PassportPhoto = () => {
                   <p className="text-sm text-muted-foreground">Sheet layout</p>
                   <div className="grid grid-cols-3 gap-2">
                     {SHEETS.map((s) => {
-                      const { cols, rows } = sheetGrid(s);
+                      const { cols, rows } = sheetLayoutMm(s);
                       return (
                         <button
                           key={s.id}
@@ -868,10 +975,93 @@ const PassportPhoto = () => {
                     })}
                   </div>
                 </div>
-                <Button onClick={downloadSheet} variant="outline" className="w-full gap-2">
+
+                <div className="space-y-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Sheet preview</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-2 h-8"
+                      onClick={() => setShowSheetGuides((v) => !v)}
+                    >
+                      {showSheetGuides ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showSheetGuides ? "Hide guides" : "Show guides"}
+                    </Button>
+                  </div>
+                  <div className="flex justify-center rounded-lg bg-muted/30 p-3 overflow-auto">
+                    <canvas ref={sheetPreviewRef} className="rounded shadow-sm" />
+                  </div>
+                  {showSheetGuides && (
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      Red band = printer margin (unprintable), dashed red = safe area, blue = sheet centre.
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <Label>Print margin</Label>
+                      <span className="text-muted-foreground">{marginMm} mm</span>
+                    </div>
+                    <Slider
+                      value={[marginMm]}
+                      min={0}
+                      max={25}
+                      step={1}
+                      onValueChange={(v) => setMarginMm(v[0])}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <Label>Spacing between photos</Label>
+                      <span className="text-muted-foreground">{gapMm} mm</span>
+                    </div>
+                    <Slider
+                      value={[gapMm]}
+                      min={0}
+                      max={15}
+                      step={1}
+                      onValueChange={(v) => setGapMm(v[0])}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "Borderless (0 mm)", m: 0, g: 2 },
+                      { label: "Inkjet (4 mm)", m: 4, g: 3 },
+                      { label: "Laser (6.4 mm)", m: 6.4, g: 3 },
+                      { label: "Safe (10 mm)", m: 10, g: 4 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        onClick={() => {
+                          setMarginMm(p.m);
+                          setGapMm(p.g);
+                        }}
+                        className="rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted/50"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  onClick={downloadSheet}
+                  variant="outline"
+                  className="w-full gap-2"
+                  disabled={sheetCount < 1}
+                >
                   <Download className="w-4 h-4" /> Download {sheet.label} sheet ({sheetCount} photos)
                 </Button>
+                {sheetCount < 1 && (
+                  <p className="text-xs text-destructive text-center">
+                    No photo fits — reduce the margin or spacing.
+                  </p>
+                )}
               </div>
+
 
             </div>
           </div>
