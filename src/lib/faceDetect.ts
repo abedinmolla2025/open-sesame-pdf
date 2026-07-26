@@ -22,6 +22,9 @@ export interface FaceAnchor {
   eyeV: number;
   /** How the anchor was obtained */
   source: "native" | "heuristic";
+  /** 0–1 rough confidence in the detection */
+  confidence: number;
+
 }
 
 type FaceDetectorLike = {
