@@ -146,13 +146,29 @@ function detectHeuristic(img: HTMLImageElement): FaceAnchor | null {
   const chin = (y1 + 1) * sy;
   const skinTop = y0 * sy;
   const crown = chin - (chin - skinTop) * 1.38;
+  // Confidence: how face-like the region is (aspect ratio ~0.75) and how
+  // densely it is filled with skin pixels.
+  const ratio = faceW / faceH;
+  const ratioScore = Math.max(0, 1 - Math.abs(ratio - 0.75) / 0.9);
+  let density = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) density += mask[y * W + x];
+  density /= faceW * faceH;
+  const densityScore = Math.max(0, Math.min(1, (density - 0.25) / 0.5));
+  const sizeScore = Math.max(0, Math.min(1, (faceH / H) / 0.35));
+  const confidence = Math.max(
+    0.15,
+    Math.min(0.8, 0.15 + 0.65 * (0.45 * ratioScore + 0.35 * densityScore + 0.2 * sizeScore))
+  );
+
   return {
     u: ((x0 + x1 + 1) / 2) * sx,
     crownV: Math.max(0, crown),
     chinV: Math.min(img.height, chin),
     eyeV: skinTop + (chin - skinTop) * 0.35,
     source: "heuristic",
+    confidence,
   };
+
 }
 
 export async function detectFace(img: HTMLImageElement): Promise<FaceAnchor | null> {
