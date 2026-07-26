@@ -541,7 +541,7 @@ const PassportPhoto = () => {
                     </Label>
                     <span className="text-sm text-muted-foreground">{zoom.toFixed(2)}x</span>
                   </div>
-                  <Slider value={[zoom]} min={1} max={3} step={0.01} onValueChange={(v) => setZoom(v[0])} />
+                  <Slider value={[zoom]} min={0.3} max={4} step={0.01} onValueChange={(v) => setZoom(v[0])} />
                 </div>
 
                 <div className="space-y-3">
@@ -598,6 +598,9 @@ const PassportPhoto = () => {
                   onClick={() => {
                     setZoom(1);
                     setOffset({ x: 0, y: 0 });
+                    anchorRef.current = null;
+                    setCrownF(preset.crown);
+                    setChinF(preset.chin);
                   }}
                 >
                   <RotateCcw className="w-4 h-4" /> Reset framing
