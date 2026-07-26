@@ -212,7 +212,7 @@ const PassportPhoto = () => {
     ctx.lineTo(w / 2, h);
     ctx.stroke();
     ctx.setLineDash([]);
-  }, [showGuides, preset, PREVIEW_W, PREVIEW_H]);
+  }, [showGuides, preset, PREVIEW_W, PREVIEW_H, image]);
 
   // ---- Snapping ----
   const applyAnchor = useCallback(
