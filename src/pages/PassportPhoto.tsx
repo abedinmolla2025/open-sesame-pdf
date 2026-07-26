@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Upload, Download, X, IdCard, ZoomIn, RotateCcw } from "lucide-react";
+import { Upload, Download, X, IdCard, ZoomIn, RotateCcw, Crosshair, Eye, EyeOff } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
