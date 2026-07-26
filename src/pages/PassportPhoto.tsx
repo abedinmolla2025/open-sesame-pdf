@@ -84,8 +84,9 @@ const PassportPhoto = () => {
   const [detecting, setDetecting] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
   const [detection, setDetection] = useState<FaceAnchor | null>(null);
-
-
+  const [bgRemoved, setBgRemoved] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
+  const [bgProgress, setBgProgress] = useState(0);
 
   const previewRef = useRef<HTMLCanvasElement>(null);
   const guideRef = useRef<HTMLCanvasElement>(null);
@@ -93,6 +94,9 @@ const PassportPhoto = () => {
   const markerDrag = useRef<{ which: "crown" | "chin"; startY: number; startF: number } | null>(null);
   /** Head position in image pixel coordinates, captured on the last snap */
   const anchorRef = useRef<{ u: number; crownV: number; chinV: number } | null>(null);
+  /** Photo before background removal, so it can be restored */
+  const originalImageRef = useRef<HTMLImageElement | null>(null);
+
 
   const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
   const aspect = preset.wMm / preset.hMm;
