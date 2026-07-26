@@ -51,6 +51,12 @@ const MM_PER_INCH = 25.4;
 const SHEET_W_MM = 152.4; // 6 inch
 const SHEET_H_MM = 101.6; // 4 inch
 
+const SHEETS = [
+  { id: "4x6", label: '4x6" photo paper', wMm: 152.4, hMm: 101.6, file: "4x6" },
+  { id: "a4p", label: "A4 portrait", wMm: 210, hMm: 297, file: "a4-portrait" },
+  { id: "a4l", label: "A4 landscape", wMm: 297, hMm: 210, file: "a4-landscape" },
+] as const;
+
 const PassportPhoto = () => {
   const { toast } = useToast();
   usePageHead({
