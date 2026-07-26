@@ -1,0 +1,431 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { Upload, Download, X, IdCard, ZoomIn, RotateCcw } from "lucide-react";
+import { Layout } from "@/components/Layout";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { usePageHead } from "@/hooks/usePageHead";
+import { cn } from "@/lib/utils";
+
+interface Preset {
+  id: string;
+  label: string;
+  wMm: number;
+  hMm: number;
+  note: string;
+}
+
+const PRESETS: Preset[] = [
+  { id: "us", label: 'US / 2" x 2"', wMm: 51, hMm: 51, note: "USA passport & visa" },
+  { id: "in", label: "35 x 45 mm", wMm: 35, hMm: 45, note: "India, EU, UK, AU" },
+  { id: "cn", label: "33 x 48 mm", wMm: 33, hMm: 48, note: "China visa" },
+  { id: "ca", label: "50 x 70 mm", wMm: 50, hMm: 70, note: "Canada passport" },
+  { id: "stamp", label: "20 x 25 mm", wMm: 20, hMm: 25, note: "Stamp size" },
+];
+
+const BG_COLORS = [
+  { id: "white", label: "White", value: "#ffffff" },
+  { id: "offwhite", label: "Off white", value: "#f2f2f2" },
+  { id: "lightblue", label: "Light blue", value: "#cfe0f5" },
+  { id: "grey", label: "Grey", value: "#d9d9d9" },
+];
+
+const MM_PER_INCH = 25.4;
+const SHEET_W_MM = 152.4; // 6 inch
+const SHEET_H_MM = 101.6; // 4 inch
+
+const PassportPhoto = () => {
+  const { toast } = useToast();
+  usePageHead({
+    title: "Passport Size Photo Maker — Free Online Photo Tool",
+    description:
+      "Create passport, visa and ID photos online. Crop to 2x2 inch, 35x45mm and more, pick a background, and download a single photo or a printable 4x6 sheet.",
+    canonical: "https://free-my-pdf.lovable.app/passport-photo",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      name: "Passport Size Photo Maker",
+      applicationCategory: "MultimediaApplication",
+      operatingSystem: "Any",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+  });
+
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [fileName, setFileName] = useState("photo");
+  const [presetId, setPresetId] = useState("us");
+  const [bg, setBg] = useState("#ffffff");
+  const [dpi, setDpi] = useState(300);
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
+
+  const previewRef = useRef<HTMLCanvasElement>(null);
+  const dragState = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
+  const aspect = preset.wMm / preset.hMm;
+
+  const PREVIEW_W = 320;
+  const PREVIEW_H = Math.round(PREVIEW_W / aspect);
+
+  const loadFile = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        toast({ title: "Unsupported file", description: "Please choose a JPG, PNG or WebP image.", variant: "destructive" });
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        setImage(img);
+        setFileName(file.name.replace(/\.[^.]+$/, "") || "photo");
+        setZoom(1);
+        setOffset({ x: 0, y: 0 });
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        toast({ title: "Could not read image", variant: "destructive" });
+      };
+      img.src = url;
+    },
+    [toast]
+  );
+
+  // Draw a photo of given pixel size onto a canvas context
+  const drawPhoto = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number, dx = 0, dy = 0) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(dx, dy, w, h);
+      ctx.clip();
+      ctx.fillStyle = bg;
+      ctx.fillRect(dx, dy, w, h);
+      if (image) {
+        const baseScale = Math.max(w / image.width, h / image.height);
+        const scale = baseScale * zoom;
+        const iw = image.width * scale;
+        const ih = image.height * scale;
+        const x = dx + (w - iw) / 2 + offset.x * w;
+        const y = dy + (h - ih) / 2 + offset.y * h;
+        ctx.drawImage(image, x, y, iw, ih);
+      }
+      ctx.restore();
+    },
+    [image, bg, zoom, offset]
+  );
+
+  useEffect(() => {
+    const canvas = previewRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = PREVIEW_W * ratio;
+    canvas.height = PREVIEW_H * ratio;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+    drawPhoto(ctx, PREVIEW_W, PREVIEW_H);
+  }, [drawPhoto, PREVIEW_W, PREVIEW_H]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!image) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragState.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+    setIsDragging(true);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragState.current) return;
+    const d = dragState.current;
+    setOffset({
+      x: d.ox + (e.clientX - d.x) / PREVIEW_W,
+      y: d.oy + (e.clientY - d.y) / PREVIEW_H,
+    });
+  };
+  const endDrag = () => {
+    dragState.current = null;
+    setIsDragging(false);
+  };
+
+  const mmToPx = (mm: number) => Math.round((mm / MM_PER_INCH) * dpi);
+
+  const download = (canvas: HTMLCanvasElement, suffix: string) => {
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileName}-${suffix}.jpg`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Download ready", description: `${a.download} saved.` });
+    }, "image/jpeg", 0.95);
+  };
+
+  const downloadSingle = () => {
+    if (!image) return;
+    const w = mmToPx(preset.wMm);
+    const h = mmToPx(preset.hMm);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawPhoto(ctx, w, h);
+    download(canvas, `${preset.wMm}x${preset.hMm}mm`);
+  };
+
+  const downloadSheet = () => {
+    if (!image) return;
+    const sheetW = mmToPx(SHEET_W_MM);
+    const sheetH = mmToPx(SHEET_H_MM);
+    const pw = mmToPx(preset.wMm);
+    const ph = mmToPx(preset.hMm);
+    const gap = mmToPx(3);
+    const margin = mmToPx(4);
+
+    const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
+    const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = sheetW;
+    canvas.height = sheetH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, sheetW, sheetH);
+
+    const totalW = cols * pw + (cols - 1) * gap;
+    const totalH = rows * ph + (rows - 1) * gap;
+    const startX = (sheetW - totalW) / 2;
+    const startY = (sheetH - totalH) / 2;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * (pw + gap);
+        const y = startY + r * (ph + gap);
+        drawPhoto(ctx, pw, ph, x, y);
+        ctx.strokeStyle = "#c9c9c9";
+        ctx.lineWidth = Math.max(1, Math.round(dpi / 300));
+        ctx.strokeRect(x, y, pw, ph);
+      }
+    }
+    download(canvas, `sheet-4x6-${cols * rows}up`);
+  };
+
+  const sheetCount = (() => {
+    const pw = mmToPx(preset.wMm);
+    const ph = mmToPx(preset.hMm);
+    const gap = mmToPx(3);
+    const margin = mmToPx(4);
+    const sheetW = mmToPx(SHEET_W_MM);
+    const sheetH = mmToPx(SHEET_H_MM);
+    const cols = Math.max(1, Math.floor((sheetW - margin * 2 + gap) / (pw + gap)));
+    const rows = Math.max(1, Math.floor((sheetH - margin * 2 + gap) / (ph + gap)));
+    return cols * rows;
+  })();
+
+  return (
+    <Layout>
+      <div className="container max-w-5xl py-10 md:py-16">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm mb-4">
+            <IdCard className="w-4 h-4" />
+            <span>100% in your browser</span>
+          </div>
+          <h1 className="font-display text-3xl md:text-5xl font-bold mb-3">Passport Size Photo Maker</h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Crop any photo to official passport and visa dimensions, choose a background, and download a single
+            photo or a printable 4x6 inch sheet. Nothing is uploaded.
+          </p>
+        </div>
+
+        {!image ? (
+          <motion.label
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDropActive(true);
+            }}
+            onDragLeave={() => setDropActive(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropActive(false);
+              const f = e.dataTransfer.files?.[0];
+              if (f) loadFile(f);
+            }}
+            className={cn(
+              "relative cursor-pointer block w-full p-12 rounded-2xl border-2 border-dashed transition-all duration-300",
+              dropActive ? "border-primary bg-primary/10" : "border-border hover:border-primary/50 bg-card/50"
+            )}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) loadFile(f);
+                e.target.value = "";
+              }}
+            />
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center">
+                <Upload className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-medium mb-1">Drag & drop your photo here</p>
+                <p className="text-sm text-muted-foreground">or click to browse — JPG, PNG, WebP</p>
+              </div>
+            </div>
+          </motion.label>
+        ) : (
+          <div className="grid gap-8 lg:grid-cols-[auto,1fr] items-start">
+            {/* Preview */}
+            <div className="glass-card p-6 flex flex-col items-center gap-4 mx-auto">
+              <canvas
+                ref={previewRef}
+                style={{ width: PREVIEW_W, height: PREVIEW_H }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                className={cn(
+                  "rounded-lg border border-border touch-none select-none",
+                  isDragging ? "cursor-grabbing" : "cursor-grab"
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Drag the photo to reposition • {preset.wMm} x {preset.hMm} mm @ {dpi} DPI
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setImage(null);
+                  setZoom(1);
+                  setOffset({ x: 0, y: 0 });
+                }}
+                className="gap-2"
+              >
+                <X className="w-4 h-4" /> Choose another photo
+              </Button>
+            </div>
+
+            {/* Controls */}
+            <div className="space-y-6">
+              <div className="glass-card p-6 space-y-4">
+                <Label className="text-sm font-medium">Photo size</Label>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPresetId(p.id)}
+                      className={cn(
+                        "text-left px-4 py-3 rounded-xl border transition-colors",
+                        presetId === p.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted"
+                      )}
+                    >
+                      <span className="block text-sm font-medium">{p.label}</span>
+                      <span className="block text-xs text-muted-foreground">{p.note}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass-card p-6 space-y-5">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <ZoomIn className="w-4 h-4" /> Zoom
+                    </Label>
+                    <span className="text-sm text-muted-foreground">{zoom.toFixed(2)}x</span>
+                  </div>
+                  <Slider value={[zoom]} min={1} max={3} step={0.01} onValueChange={(v) => setZoom(v[0])} />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Background</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {BG_COLORS.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setBg(c.value)}
+                        aria-label={`Background ${c.label}`}
+                        style={{ backgroundColor: c.value }}
+                        className={cn(
+                          "w-9 h-9 rounded-lg border-2 transition-transform",
+                          bg === c.value ? "border-primary scale-110" : "border-border"
+                        )}
+                      />
+                    ))}
+                    <Input
+                      type="color"
+                      value={bg}
+                      onChange={(e) => setBg(e.target.value)}
+                      aria-label="Custom background colour"
+                      className="w-14 h-9 p-1 cursor-pointer"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Background shows around the photo — zoom out or reposition to reveal it.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Print quality</Label>
+                    <span className="text-sm text-muted-foreground">{dpi} DPI</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {[200, 300, 600].map((d) => (
+                      <Button
+                        key={d}
+                        variant={dpi === d ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setDpi(d)}
+                      >
+                        {d} DPI
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setZoom(1);
+                    setOffset({ x: 0, y: 0 });
+                  }}
+                >
+                  <RotateCcw className="w-4 h-4" /> Reset framing
+                </Button>
+              </div>
+
+              <div className="glass-card p-6 space-y-3">
+                <Button onClick={downloadSingle} className="w-full gap-2">
+                  <Download className="w-4 h-4" /> Download single photo
+                </Button>
+                <Button onClick={downloadSheet} variant="outline" className="w-full gap-2">
+                  <Download className="w-4 h-4" /> Download 4x6" sheet ({sheetCount} photos)
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+};
+
+export default PassportPhoto;

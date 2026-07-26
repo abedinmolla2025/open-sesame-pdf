@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors, FileImage, ImageDown } from "lucide-react";
+import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors, FileImage, ImageDown, IdCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ const navItems = [
   { path: "/split", label: "PDF Splitter", icon: Scissors, description: "Split PDFs by page or range" },
   { path: "/image-to-pdf", label: "Image to PDF", icon: FileImage, description: "Convert JPG/PNG/WebP to PDF" },
   { path: "/image-compress", label: "Image Compressor", icon: ImageDown, description: "Shrink JPG/PNG/WebP images" },
+  { path: "/passport-photo", label: "Passport Photo", icon: IdCard, description: "Make passport & visa photos" },
   { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
 ];
 
