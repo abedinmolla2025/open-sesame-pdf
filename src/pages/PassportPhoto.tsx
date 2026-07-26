@@ -101,8 +101,12 @@ const PassportPhoto = () => {
         setFileName(file.name.replace(/\.[^.]+$/, "") || "photo");
         setZoom(1);
         setOffset({ x: 0, y: 0 });
+        anchorRef.current = null;
+        setCrownF(preset.crown);
+        setChinF(preset.chin);
         URL.revokeObjectURL(url);
       };
+
       img.onerror = () => {
         URL.revokeObjectURL(url);
         toast({ title: "Could not read image", variant: "destructive" });
