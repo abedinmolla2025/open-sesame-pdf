@@ -26,8 +26,8 @@ interface SignatureInfo {
 
 const Signature = () => {
   usePageHead({
-    title: "PDF Signature — Verify & Sign PDFs | Free My PDF",
-    description: "Verify existing digital signatures or add your own signature to a PDF. Fully client-side and private.",
+    title: "PDF Signature — Detect Signature Fields & Sign PDFs | Free My PDF",
+    description: "Scan a PDF for digital signature fields or add your own signature. Client-side and private — detection only, not cryptographic verification.",
     canonical: "https://free-my-pdf.lovable.app/signature",
     jsonLd: {
       "@context": "https://schema.org",
@@ -170,8 +170,8 @@ const Signature = () => {
     } catch (error) {
       console.error("Verification error:", error);
       toast({
-        title: "Verification Failed",
-        description: "Could not verify the PDF file.",
+        title: "Scan Failed",
+        description: "Could not scan the PDF file.",
         variant: "destructive",
       });
     } finally {
@@ -278,7 +278,7 @@ const Signature = () => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
               <ShieldCheck className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Verify & Sign</span>
+              <span className="text-sm font-medium text-primary">Detect &amp; Sign</span>
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold font-display mb-6">
@@ -287,7 +287,8 @@ const Signature = () => {
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Verify digital signatures or add your own signature to PDF files. 
+              Scan PDFs for digital signature fields or add your own signature. Detection only —
+              this tool does not cryptographically verify signatures.
               Fast, secure, and completely client-side.
             </p>
           </motion.header>
@@ -304,7 +305,7 @@ const Signature = () => {
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="verify" className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4" />
-                    Verify Signature
+                    Detect Signature
                   </TabsTrigger>
                   <TabsTrigger value="sign" className="flex items-center gap-2">
                     <FileSignature className="w-4 h-4" />
@@ -330,7 +331,7 @@ const Signature = () => {
                         disabled={isVerifying}
                         className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl glow-effect"
                       >
-                        {isVerifying ? "Verifying..." : "Verify Signature"}
+                        {isVerifying ? "Scanning..." : "Scan for signatures"}
                       </Button>
 
                       {verifyResult && (
