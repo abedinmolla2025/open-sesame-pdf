@@ -14,14 +14,13 @@ interface SignerDetail {
   name: string;
   organization: string;
   date: string;
-  isVerified: boolean;
 }
 
 interface SignatureInfo {
   hasSig: boolean;
   sigCount: number;
   signers: SignerDetail[];
-  isFullyVerified: boolean;
+  hasCompleteStructure: boolean;
   certificateType: string;
 }
 
