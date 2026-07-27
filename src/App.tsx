@@ -11,6 +11,7 @@ import Merger from "./pages/Merger";
 import Splitter from "./pages/Splitter";
 import ImageToPdf from "./pages/ImageToPdf";
 import ImageCompressor from "./pages/ImageCompressor";
+import ImageUpscaler from "./pages/ImageUpscaler";
 import PassportPhoto from "./pages/PassportPhoto";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/split" element={<Splitter />} />
           <Route path="/image-to-pdf" element={<ImageToPdf />} />
           <Route path="/image-compress" element={<ImageCompressor />} />
+          <Route path="/image-upscale" element={<ImageUpscaler />} />
           <Route path="/passport-photo" element={<PassportPhoto />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
