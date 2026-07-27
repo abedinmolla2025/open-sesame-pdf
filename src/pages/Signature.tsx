@@ -102,8 +102,7 @@ const Signature = () => {
       signers.push({
         name: signerName || "Digital Signature",
         organization: org,
-        date: signDate || new Date().toISOString().split("T")[0],
-        isVerified: true, // If signature structure is valid, mark as verified
+        date: signDate || "Not stated in file",
       });
     }
     
