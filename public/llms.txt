@@ -13,5 +13,6 @@ Free My PDF is a privacy-first web app for common PDF tasks. Every operation run
 - [PDF Splitter](/split): Split a PDF into individual pages or extract custom page ranges, delivered as a ZIP.
 - [Image to PDF](/image-to-pdf): Convert and combine JPG, PNG, and WebP images into a single PDF with A4/Letter/auto-fit page sizing.
 - [Image Compressor](/image-compress): Shrink JPG, PNG, and WebP images with adjustable quality, dimension caps, and format conversion.
+- [Image Upscaler](/image-upscale): Enlarge images 2x-8x with progressive resampling and detail enhancement, fully in-browser.
 - [Passport Photo Maker](/passport-photo): Crop photos to passport/visa sizes (2x2 in, 35x45 mm and more), set a background, and export a single photo or printable 4x6 sheet.
 - [PDF Signature](/signature): Verify existing digital signatures or add your own signature to a PDF.

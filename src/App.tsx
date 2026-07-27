@@ -11,6 +11,7 @@ import Merger from "./pages/Merger";
 import Splitter from "./pages/Splitter";
 import ImageToPdf from "./pages/ImageToPdf";
 import ImageCompressor from "./pages/ImageCompressor";
+import ImageUpscaler from "./pages/ImageUpscaler";
 import PassportPhoto from "./pages/PassportPhoto";
 import NotFound from "./pages/NotFound";
 
