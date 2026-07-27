@@ -339,21 +339,15 @@ const Signature = () => {
                           animate={{ opacity: 1, y: 0 }}
                           className="space-y-4"
                         >
-                          <h2 className="sr-only">Verification results</h2>
+                          <h2 className="sr-only">Signature scan results</h2>
                           {/* Main status card */}
                           <div className={`p-5 rounded-xl border ${
-                            verifyResult.isFullyVerified 
-                              ? "bg-green-50 border-green-200" 
-                              : verifyResult.hasSig 
-                                ? "bg-amber-50 border-amber-200"
-                                : "bg-red-50 border-red-200"
+                            verifyResult.hasSig
+                              ? "bg-amber-50 border-amber-200"
+                              : "bg-red-50 border-red-200"
                           }`}>
                             <div className="flex items-center gap-3 mb-4">
-                              {verifyResult.isFullyVerified ? (
-                                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                                  <CheckCircle2 className="w-7 h-7 text-white" />
-                                </div>
-                              ) : verifyResult.hasSig ? (
+                              {verifyResult.hasSig ? (
                                 <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center">
                                   <AlertCircle className="w-7 h-7 text-white" />
                                 </div>
@@ -364,49 +358,48 @@ const Signature = () => {
                               )}
                               <div>
                                 <h3 className="font-bold text-lg">
-                                  {verifyResult.isFullyVerified 
-                                    ? "Signature Verified ✓" 
-                                    : verifyResult.hasSig 
-                                      ? "Signature Found (Partially Verified)"
-                                      : "No Signature Found"}
+                                  {verifyResult.hasSig
+                                    ? verifyResult.hasCompleteStructure
+                                      ? "Signature field detected (not validated)"
+                                      : "Partial signature markers detected (not validated)"
+                                    : "No signature field found"}
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                  {verifyResult.sigCount} digital signature(s) • {verifyResult.certificateType}
+                                  {verifyResult.sigCount} signature field(s) • {verifyResult.certificateType}
                                 </p>
                               </div>
                             </div>
 
-                            {/* Signer details */}
-                            {verifyResult.signers.map((signer, index) => (
+                            {/* Signer details as claimed inside the file */}
+                            {verifyResult.hasSig && verifyResult.signers.map((signer, index) => (
                               <div key={index} className="bg-white/80 rounded-lg p-4 border border-border">
-                                <div className="flex items-start justify-between">
-                                  <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">Digitally signed by:</p>
-                                    <p className="font-semibold text-foreground">{signer.name}</p>
-                                    {signer.organization && (
-                                      <p className="text-sm text-muted-foreground">{signer.organization}</p>
-                                    )}
-                                    <p className="text-xs text-muted-foreground">Date: {signer.date}</p>
-                                  </div>
-                                  {signer.isVerified ? (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                      <CheckCircle2 className="w-3 h-3" />
-                                      Verified
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                                      <AlertCircle className="w-3 h-3" />
-                                      Unverified
-                                    </div>
+                                <div className="space-y-1">
+                                  <p className="text-sm text-muted-foreground">Name claimed in the file:</p>
+                                  <p className="font-semibold text-foreground">{signer.name}</p>
+                                  {signer.organization && (
+                                    <p className="text-sm text-muted-foreground">{signer.organization}</p>
                                   )}
+                                  <p className="text-xs text-muted-foreground">Date claimed: {signer.date}</p>
                                 </div>
                               </div>
                             ))}
                           </div>
 
+                          <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 flex gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-900">
+                              <strong>This is not a signature verification.</strong> This tool only
+                              scans the file for signature structures and reads the names written
+                              inside it. It does not check the cryptographic signature, the document
+                              hash, or the certificate chain — any of these details can be faked.
+                              To confirm a document is authentic, open it in Adobe Acrobat or another
+                              validator that performs real cryptographic verification.
+                            </p>
+                          </div>
+
                           {!verifyResult.hasSig && (
                             <p className="text-sm text-muted-foreground text-center">
-                              This PDF does not contain any digital signatures.
+                              This PDF does not contain any digital signature fields.
                             </p>
                           )}
                         </motion.div>
