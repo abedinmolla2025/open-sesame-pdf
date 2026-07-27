@@ -32,6 +32,7 @@ const App = () => (
           <Route path="/split" element={<Splitter />} />
           <Route path="/image-to-pdf" element={<ImageToPdf />} />
           <Route path="/image-compress" element={<ImageCompressor />} />
+          <Route path="/image-upscale" element={<ImageUpscaler />} />
           <Route path="/passport-photo" element={<PassportPhoto />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
