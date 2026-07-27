@@ -151,19 +151,20 @@ const Signature = () => {
         certificateType = "PKCS#7";
       }
       
-      // Check if signature is structurally valid (has all required components)
-      const isStructurallyValid = hasSigField && hasByteRange && hasSubFilter;
-      
+      // NOTE: this is a structural scan only — no cryptographic validation is
+      // performed (no PKCS#7 parsing, no ByteRange digest check, no chain validation).
+      // Never present these results as proof of authenticity.
+      const hasCompleteStructure = hasSigField && hasByteRange && hasSubFilter;
+
       setVerifyResult({
         hasSig: hasSigField || hasAdobeMarkers,
         sigCount,
         signers: signers.length > 0 ? signers : [{
-          name: isAadhaar ? "UIDAI Digital Signature" : "Digital Signature",
-          organization: isAadhaar ? "Unique Identification Authority of India" : "Unknown Organization",
-          date: new Date().toISOString().split("T")[0],
-          isVerified: isStructurallyValid,
+          name: isAadhaar ? "UIDAI Digital Signature (claimed)" : "Digital Signature (claimed)",
+          organization: isAadhaar ? "Unique Identification Authority of India (claimed)" : "Not stated in file",
+          date: "Not stated in file",
         }],
-        isFullyVerified: isStructurallyValid && (hasSigField || hasAdobeMarkers),
+        hasCompleteStructure,
         certificateType,
       });
     } catch (error) {
