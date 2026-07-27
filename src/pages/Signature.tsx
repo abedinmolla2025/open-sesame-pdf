@@ -462,7 +462,7 @@ const Signature = () => {
             <FeatureCard
               icon={<Zap className="w-6 h-6" />}
               title="Instant Results"
-              description="Verify signatures or sign PDFs in seconds with our optimized engine."
+              description="Detect signature fields or sign PDFs in seconds with our optimized engine."
             />
             <FeatureCard
               icon={<ShieldCheck className="w-6 h-6" />}
