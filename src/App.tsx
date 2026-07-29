@@ -13,6 +13,7 @@ import ImageToPdf from "./pages/ImageToPdf";
 import ImageCompressor from "./pages/ImageCompressor";
 import ImageUpscaler from "./pages/ImageUpscaler";
 import PassportPhoto from "./pages/PassportPhoto";
+import PdfSecurity from "./pages/PdfSecurity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
