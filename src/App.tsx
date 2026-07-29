@@ -35,6 +35,7 @@ const App = () => (
           <Route path="/image-compress" element={<ImageCompressor />} />
           <Route path="/image-upscale" element={<ImageUpscaler />} />
           <Route path="/passport-photo" element={<PassportPhoto />} />
+          <Route path="/pdf-security" element={<PdfSecurity />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

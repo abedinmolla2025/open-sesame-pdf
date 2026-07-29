@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors, FileImage, ImageDown, IdCard, Sparkles } from "lucide-react";
+import { FileKey, ShieldCheck, FileEdit, ChevronDown, Menu, FileArchive, Combine, Scissors, FileImage, ImageDown, IdCard, Sparkles, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -20,6 +20,7 @@ const navItems = [
   { path: "/image-upscale", label: "Image Upscaler", icon: Sparkles, description: "Enlarge photos up to 8x" },
   { path: "/passport-photo", label: "Passport Photo", icon: IdCard, description: "Make passport & visa photos" },
   { path: "/signature", label: "Signature Tool", icon: ShieldCheck, description: "Verify & sign PDFs" },
+  { path: "/pdf-security", label: "Security Scan", icon: ShieldAlert, description: "Scan & triage PDF risks" },
 ];
 
 export const Header = () => {
