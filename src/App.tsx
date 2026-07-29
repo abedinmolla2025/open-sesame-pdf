@@ -13,6 +13,7 @@ import ImageToPdf from "./pages/ImageToPdf";
 import ImageCompressor from "./pages/ImageCompressor";
 import ImageUpscaler from "./pages/ImageUpscaler";
 import PassportPhoto from "./pages/PassportPhoto";
+import PdfSecurity from "./pages/PdfSecurity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/image-compress" element={<ImageCompressor />} />
           <Route path="/image-upscale" element={<ImageUpscaler />} />
           <Route path="/passport-photo" element={<PassportPhoto />} />
+          <Route path="/pdf-security" element={<PdfSecurity />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
