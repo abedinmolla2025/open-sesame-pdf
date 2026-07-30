@@ -7,7 +7,18 @@ export interface FindingLocation {
   objectHint: string;
   /** Short raw evidence snippet */
   snippet: string;
+  /** 1-based page number this offset most likely belongs to (undefined = document level) */
+  page?: number;
+  /** Relative vertical position (0-1) of the offset inside that page's byte span */
+  pagePosition?: number;
+  /** Longer raw context around the match, for the evidence viewer */
+  context?: string;
+  /** Index of the match inside `context` */
+  contextMatchStart?: number;
+  /** Length of the raw match */
+  matchLength?: number;
 }
+
 
 export interface SecurityFinding {
   id: string;
@@ -135,10 +146,61 @@ function snippetAt(text: string, offset: number, length: number): string {
   return raw.replace(/[^\x20-\x7E]/g, "·").trim();
 }
 
+const CONTEXT_RADIUS = 220;
+
+function contextAt(text: string, offset: number, length: number) {
+  const start = Math.max(0, offset - CONTEXT_RADIUS);
+  const end = Math.min(text.length, offset + length + CONTEXT_RADIUS);
+  const raw = text.slice(start, end).replace(/[^\x20-\x7E\n]/g, "·");
+  return { context: raw, contextMatchStart: offset - start, matchLength: length };
+}
+
+/**
+ * Byte offsets where each `/Type /Page` object starts, in file order.
+ * Used to map a raw offset back to a rendered page for the preview.
+ */
+function pageObjectOffsets(text: string): number[] {
+  const offsets: number[] = [];
+  const objRe = /(\d+)\s+(\d+)\s+obj\b/g;
+  const bounds: number[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = objRe.exec(text)) !== null) bounds.push(m.index);
+
+  for (let i = 0; i < bounds.length; i++) {
+    const start = bounds[i];
+    const end = i + 1 < bounds.length ? bounds[i + 1] : text.length;
+    const body = text.slice(start, Math.min(end, start + 4000));
+    if (/\/Type\s*\/Page\b(?!s)/.test(body)) offsets.push(start);
+  }
+  return offsets;
+}
+
+function pageAt(
+  pageOffsets: number[],
+  offset: number,
+  fileLength: number
+): { page?: number; pagePosition?: number } {
+  if (pageOffsets.length === 0) return {};
+  let idx = -1;
+  for (let i = 0; i < pageOffsets.length; i++) {
+    if (pageOffsets[i] <= offset) idx = i;
+    else break;
+  }
+  if (idx < 0) return {};
+  const start = pageOffsets[idx];
+  const end = idx + 1 < pageOffsets.length ? pageOffsets[idx + 1] : fileLength;
+  const span = Math.max(1, end - start);
+  return {
+    page: idx + 1,
+    pagePosition: Math.min(1, Math.max(0, (offset - start) / span)),
+  };
+}
+
 export async function scanPdfForSecurityIssues(file: File): Promise<ScanResult> {
   const started = performance.now();
   const buffer = await file.arrayBuffer();
   const text = new TextDecoder("latin1").decode(new Uint8Array(buffer));
+  const pageOffsets = pageObjectOffsets(text);
 
   const findings: SecurityFinding[] = [];
 
@@ -152,6 +214,8 @@ export async function scanPdfForSecurityIssues(file: File): Promise<ScanResult> 
         offset: match.index,
         objectHint: objectHintAt(text, match.index),
         snippet: snippetAt(text, match.index, match[0].length),
+        ...pageAt(pageOffsets, match.index, text.length),
+        ...contextAt(text, match.index, match[0].length),
       });
       if (match[0].length === 0) re.lastIndex++;
     }
@@ -180,3 +244,4 @@ export async function scanPdfForSecurityIssues(file: File): Promise<ScanResult> 
     findings,
   };
 }
+
