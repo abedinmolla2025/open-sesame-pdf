@@ -46,7 +46,8 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<PageFallback />}>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/unlock-pdf" element={<Index />} />
             <Route path="/signature" element={<Signature />} />
             <Route path="/editor" element={<Editor />} />
             <Route path="/compress" element={<Compressor />} />
