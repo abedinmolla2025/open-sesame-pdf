@@ -63,6 +63,17 @@ const PdfSecurity = () => {
       "Scan a PDF in your browser for JavaScript, auto-actions, attachments and external links. Filter findings by severity and triage every location.",
     canonical: "https://free-my-pdf.lovable.app/pdf-security",
     type: "website",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "PDF Security Scanner",
+      applicationCategory: "SecurityApplication",
+      operatingSystem: "Any (web browser)",
+      url: "https://free-my-pdf.lovable.app/pdf-security",
+      description:
+        "Scan a PDF in your browser for JavaScript, auto-actions, attachments and external links.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
     breadcrumbs: CRUMB_LD,
   });
 
