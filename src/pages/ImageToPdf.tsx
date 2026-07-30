@@ -12,6 +12,7 @@ import {
   FileImage,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -96,12 +97,24 @@ const toEmbeddable = async (
   }
 };
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "Image to PDF" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "Image to PDF", url: "https://free-my-pdf.lovable.app/image-to-pdf" },
+];
+
 const ImageToPdf = () => {
   usePageHead({
     title: "Image to PDF Converter — JPG/PNG/WebP to PDF Online | Free My PDF",
     description:
       "Convert JPG, PNG, and WebP images into a single PDF directly in your browser. Fast, private, and 100% client-side — no uploads.",
     canonical: "https://free-my-pdf.lovable.app/image-to-pdf",
+    type: "website",
+    breadcrumbs: CRUMB_LD,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -333,6 +346,8 @@ const ImageToPdf = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
+
+          <Breadcrumbs items={CRUMBS} className="mb-6" />
           <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

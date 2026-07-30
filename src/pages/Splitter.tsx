@@ -9,6 +9,7 @@ import {
   Package,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DropZone } from "@/components/DropZone";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -84,12 +85,24 @@ const parseRanges = (
   return { groups, errors };
 };
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "PDF Splitter" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "PDF Splitter", url: "https://free-my-pdf.lovable.app/split" },
+];
+
 const Splitter = () => {
   usePageHead({
     title: "PDF Splitter — Split PDF Into Multiple Files Online | Free My PDF",
     description:
       "Split a PDF into individual pages or custom page ranges directly in your browser. Fast, private, and 100% client-side — no uploads.",
     canonical: "https://free-my-pdf.lovable.app/split",
+    type: "website",
+    breadcrumbs: CRUMB_LD,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -275,6 +288,8 @@ const Splitter = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
+
+          <Breadcrumbs items={CRUMBS} className="mb-6" />
           <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

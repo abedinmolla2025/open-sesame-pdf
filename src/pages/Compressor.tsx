@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Minimize2, Shield, Zap, FileArchive, Download } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DropZone } from "@/components/DropZone";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -47,11 +48,23 @@ const TARGET_ATTEMPTS: Array<{ scale: number; quality: number }> = [
   { scale: 0.4, quality: 0.18 },
 ];
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "PDF Compressor" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "PDF Compressor", url: "https://free-my-pdf.lovable.app/compress" },
+];
+
 const Compressor = () => {
   usePageHead({
     title: "PDF Compressor — Reduce PDF File Size Online | Free My PDF",
     description: "Compress and reduce PDF file size directly in your browser. Fast, private, and 100% client-side — no uploads.",
     canonical: "https://free-my-pdf.lovable.app/compress",
+    type: "website",
+    breadcrumbs: CRUMB_LD,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -277,6 +290,8 @@ const Compressor = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
+
+          <Breadcrumbs items={CRUMBS} className="mb-6" />
           <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

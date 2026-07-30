@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, Shield, Zap, FileSignature, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DropZone } from "@/components/DropZone";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,23 @@ interface SignatureInfo {
   certificateType: string;
 }
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "PDF Signature" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "PDF Signature", url: "https://free-my-pdf.lovable.app/signature" },
+];
+
 const Signature = () => {
   usePageHead({
     title: "PDF Signature — Detect Signature Fields & Sign PDFs | Free My PDF",
     description: "Scan a PDF for digital signature fields or add your own signature. Client-side and private — detection only, not cryptographic verification.",
     canonical: "https://free-my-pdf.lovable.app/signature",
+    type: "website",
+    breadcrumbs: CRUMB_LD,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -269,6 +282,8 @@ const Signature = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
+
+          <Breadcrumbs items={CRUMBS} className="mb-6" />
           {/* Header */}
           <motion.header
             initial={{ opacity: 0, y: -20 }}
