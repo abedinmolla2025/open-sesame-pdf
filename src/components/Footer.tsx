@@ -8,10 +8,12 @@ const legal = [
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/terms", label: "Terms of Use" },
   { to: "/disclaimer", label: "Disclaimer" },
+  { to: "/#blog", label: "Blog" },
+  { to: "/sitemap.xml", label: "Sitemap" },
 ];
 
 const pdfTools = [
-  { to: "/", label: "PDF Unlocker" },
+  { to: "/unlock-pdf", label: "PDF Unlocker" },
   { to: "/editor", label: "PDF Editor" },
   { to: "/compress", label: "PDF Compressor" },
   { to: "/merge", label: "PDF Merger" },
@@ -27,7 +29,7 @@ export const Footer = () => (
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <FileKey className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold">ImageTools Hub</span>
+          <span className="font-display font-bold">ImagePDF Tools</span>
         </Link>
         <p className="text-sm text-muted-foreground">
           Fast, private image and PDF utilities. Everything runs in your browser — no uploads, no
@@ -64,18 +66,26 @@ export const Footer = () => (
       <nav aria-label="Company">
         <h2 className="font-medium mb-3 text-sm">Company</h2>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          {legal.map((t) => (
-            <li key={t.to}>
-              <Link to={t.to} className="hover:text-foreground transition-colors">
-                {t.label}
-              </Link>
-            </li>
-          ))}
+          {legal.map((t) =>
+            t.to.endsWith(".xml") ? (
+              <li key={t.to}>
+                <a href={t.to} className="hover:text-foreground transition-colors">
+                  {t.label}
+                </a>
+              </li>
+            ) : (
+              <li key={t.to}>
+                <Link to={t.to} className="hover:text-foreground transition-colors">
+                  {t.label}
+                </Link>
+              </li>
+            )
+          )}
         </ul>
       </nav>
     </div>
     <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-      © {new Date().getFullYear()} ImageTools Hub. All processing happens locally in your browser.
+      © {new Date().getFullYear()} ImagePDF Tools. All processing happens locally in your browser.
     </div>
   </footer>
 );

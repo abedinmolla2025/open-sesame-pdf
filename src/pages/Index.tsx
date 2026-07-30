@@ -11,18 +11,22 @@ import { usePageHead } from "@/hooks/usePageHead";
 
 const Index = () => {
   usePageHead({
-    title: "Unlock PDF — Free My PDF",
+    title: "Unlock PDF — Remove PDF Passwords Free | ImagePDF Tools",
     description: "Remove password protection from PDF files instantly in your browser. 100% client-side — your files never leave your device.",
-    canonical: "https://free-my-pdf.lovable.app/",
+    canonical: "https://free-my-pdf.lovable.app/unlock-pdf",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      name: "Free My PDF Unlocker",
+      name: "ImagePDF Tools PDF Unlocker",
       applicationCategory: "Utility",
       operatingSystem: "Any",
-      url: "https://free-my-pdf.lovable.app/",
+      url: "https://free-my-pdf.lovable.app/unlock-pdf",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     },
+    breadcrumbs: [
+      { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+      { name: "Unlock PDF", url: "https://free-my-pdf.lovable.app/unlock-pdf" },
+    ],
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
