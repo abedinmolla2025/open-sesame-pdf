@@ -9,6 +9,8 @@ export interface FindingLocation {
   snippet: string;
   /** 1-based page number this offset most likely belongs to (undefined = document level) */
   page?: number;
+  /** Relative vertical position (0-1) of the offset inside that page's byte span */
+  pagePosition?: number;
   /** Longer raw context around the match, for the evidence viewer */
   context?: string;
   /** Index of the match inside `context` */
@@ -173,14 +175,25 @@ function pageObjectOffsets(text: string): number[] {
   return offsets;
 }
 
-function pageAt(pageOffsets: number[], offset: number): number | undefined {
-  if (pageOffsets.length === 0) return undefined;
-  let page: number | undefined;
+function pageAt(
+  pageOffsets: number[],
+  offset: number,
+  fileLength: number
+): { page?: number; pagePosition?: number } {
+  if (pageOffsets.length === 0) return {};
+  let idx = -1;
   for (let i = 0; i < pageOffsets.length; i++) {
-    if (pageOffsets[i] <= offset) page = i + 1;
+    if (pageOffsets[i] <= offset) idx = i;
     else break;
   }
-  return page;
+  if (idx < 0) return {};
+  const start = pageOffsets[idx];
+  const end = idx + 1 < pageOffsets.length ? pageOffsets[idx + 1] : fileLength;
+  const span = Math.max(1, end - start);
+  return {
+    page: idx + 1,
+    pagePosition: Math.min(1, Math.max(0, (offset - start) / span)),
+  };
 }
 
 export async function scanPdfForSecurityIssues(file: File): Promise<ScanResult> {
@@ -201,7 +214,7 @@ export async function scanPdfForSecurityIssues(file: File): Promise<ScanResult> 
         offset: match.index,
         objectHint: objectHintAt(text, match.index),
         snippet: snippetAt(text, match.index, match[0].length),
-        page: pageAt(pageOffsets, match.index),
+        ...pageAt(pageOffsets, match.index, text.length),
         ...contextAt(text, match.index, match[0].length),
       });
       if (match[0].length === 0) re.lastIndex++;
