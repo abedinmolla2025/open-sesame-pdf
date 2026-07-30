@@ -5,9 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
-import Index from "./pages/Index";
+import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 
+const Index = lazy(() => import("./pages/Index"));
 const Signature = lazy(() => import("./pages/Signature"));
 const Editor = lazy(() => import("./pages/Editor"));
 const Compressor = lazy(() => import("./pages/Compressor"));
