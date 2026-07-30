@@ -1,8 +1,9 @@
 import { ReactNode, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronRight, Check, HelpCircle } from "lucide-react";
+import { Check, HelpCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AdSlot } from "@/components/AdSlot";
 import { usePageHead } from "@/hooks/usePageHead";
 import {
