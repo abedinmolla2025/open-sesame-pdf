@@ -8,10 +8,12 @@ const legal = [
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/terms", label: "Terms of Use" },
   { to: "/disclaimer", label: "Disclaimer" },
+  { to: "/#blog", label: "Blog" },
+  { to: "/sitemap.xml", label: "Sitemap" },
 ];
 
 const pdfTools = [
-  { to: "/", label: "PDF Unlocker" },
+  { to: "/unlock-pdf", label: "PDF Unlocker" },
   { to: "/editor", label: "PDF Editor" },
   { to: "/compress", label: "PDF Compressor" },
   { to: "/merge", label: "PDF Merger" },
