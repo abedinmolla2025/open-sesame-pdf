@@ -10,7 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
+  { path: "/image-tools", label: "Image Tools", icon: LayoutGrid, description: "All image tools in one hub" },
   { path: "/", label: "PDF Unlocker", icon: FileKey, description: "Remove password protection" },
+
   { path: "/editor", label: "PDF Editor", icon: FileEdit, description: "Edit text in PDFs" },
   { path: "/compress", label: "PDF Compressor", icon: FileArchive, description: "Shrink PDF file size" },
   { path: "/merge", label: "PDF Merger", icon: Combine, description: "Combine multiple PDFs" },
