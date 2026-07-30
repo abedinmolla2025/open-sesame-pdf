@@ -93,7 +93,7 @@ export const PdfFindingPreview = ({
     .filter(({ l }) => (l.page ?? 1) === page);
 
   return (
-    <div className="rounded-xl border border-border bg-background/60 p-3 space-y-3">
+    <div className="min-w-0 rounded-xl border border-border bg-background/60 p-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground truncate">
           {label} · page {page}

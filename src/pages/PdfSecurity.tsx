@@ -329,8 +329,8 @@ const PdfSecurity = () => {
                           {f.recommendation}
                         </p>
 
-                        <div className="grid gap-3 lg:grid-cols-2">
-                          <div className="space-y-2 max-h-72 lg:max-h-[28rem] overflow-y-auto pr-1">
+                        <div className="grid gap-3 lg:grid-cols-2 min-w-0">
+                          <div className="min-w-0 space-y-2 max-h-72 lg:max-h-[28rem] overflow-y-auto pr-1">
                             {f.locations.map((l, i) => {
                               const selected =
                                 activeLoc?.findingId === f.id && activeLoc.index === i;
