@@ -1,8 +1,9 @@
 import { ReactNode, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronRight, Check, HelpCircle } from "lucide-react";
+import { Check, HelpCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AdSlot } from "@/components/AdSlot";
 import { usePageHead } from "@/hooks/usePageHead";
 import {
@@ -83,7 +84,7 @@ export const ToolPage = ({
     [canonical, faqs, howTo, metaDescription, title, tool]
   );
 
-  usePageHead({ title, description: metaDescription, canonical, jsonLd });
+  usePageHead({ title, description: metaDescription, canonical, type: "website", jsonLd });
 
   const related = relatedTools(slug, 3);
   const Icon = tool?.icon;
@@ -91,25 +92,15 @@ export const ToolPage = ({
   return (
     <Layout>
       <div className="container py-8 sm:py-10 max-w-5xl">
-        <nav aria-label="Breadcrumb" className="mb-6">
-          <ol className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <li>
-              <Link to="/" className="hover:text-foreground">
-                Home
-              </Link>
-            </li>
-            <ChevronRight className="w-3 h-3" aria-hidden />
-            <li>
-              <Link to="/image-tools" className="hover:text-foreground">
-                Image Tools
-              </Link>
-            </li>
-            <ChevronRight className="w-3 h-3" aria-hidden />
-            <li aria-current="page" className="text-foreground">
-              {tool?.name ?? title}
-            </li>
-          </ol>
-        </nav>
+        <Breadcrumbs
+          className="mb-6"
+          items={[
+            { name: "Home", to: "/" },
+            { name: "Image Tools", to: "/image-tools" },
+            { name: tool?.name ?? title },
+          ]}
+        />
+
 
         <motion.header
           initial={{ opacity: 0, y: 10 }}

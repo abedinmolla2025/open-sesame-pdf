@@ -12,6 +12,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DropZone } from "@/components/DropZone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,12 +46,35 @@ const STATUS_FILTERS: { value: TriageStatus | "all"; label: string }[] = [
   { value: "ignored", label: "Ignored" },
 ];
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "PDF Security Scanner" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "PDF Security Scanner", url: "https://free-my-pdf.lovable.app/pdf-security" },
+];
+
 const PdfSecurity = () => {
   usePageHead({
     title: "PDF Security Scanner — Filter & Triage Findings | Free My PDF",
     description:
       "Scan a PDF in your browser for JavaScript, auto-actions, attachments and external links. Filter findings by severity and triage every location.",
     canonical: "https://free-my-pdf.lovable.app/pdf-security",
+    type: "website",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "PDF Security Scanner",
+      applicationCategory: "SecurityApplication",
+      operatingSystem: "Any (web browser)",
+      url: "https://free-my-pdf.lovable.app/pdf-security",
+      description:
+        "Scan a PDF in your browser for JavaScript, auto-actions, attachments and external links.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+    breadcrumbs: CRUMB_LD,
   });
 
   const { toast } = useToast();
@@ -176,6 +200,7 @@ const PdfSecurity = () => {
   return (
     <Layout>
       <div className="container py-10 max-w-4xl">
+        <Breadcrumbs items={CRUMBS} className="mb-6" />
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-muted/40 text-xs text-muted-foreground mb-4">
             <ShieldAlert className="w-3.5 h-3.5" />

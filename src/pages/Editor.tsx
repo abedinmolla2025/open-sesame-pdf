@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileEdit, AlertCircle, Info } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DropZone } from "@/components/DropZone";
 import { PdfEditorCanvas } from "@/components/PdfEditorCanvas";
 import { EditorToolbar } from "@/components/EditorToolbar";
@@ -9,11 +10,23 @@ import { usePdfEditor } from "@/hooks/usePdfEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePageHead } from "@/hooks/usePageHead";
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "PDF Editor" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "PDF Editor", url: "https://free-my-pdf.lovable.app/editor" },
+];
+
 const Editor = () => {
   usePageHead({
     title: "PDF Editor — Edit Text & Annotate PDFs | Free My PDF",
     description: "Edit PDF text, add whiteouts, shapes, images, and annotations right in your browser. No uploads, 100% private.",
     canonical: "https://free-my-pdf.lovable.app/editor",
+    type: "website",
+    breadcrumbs: CRUMB_LD,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -79,6 +92,8 @@ const Editor = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-4 py-8 md:py-12">
+
+          <Breadcrumbs items={CRUMBS} className="mb-6" />
           <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

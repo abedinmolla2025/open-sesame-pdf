@@ -13,6 +13,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
@@ -37,12 +38,24 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 };
 
+const CRUMBS = [
+  { name: "Home", to: "/" },
+  { name: "PDF Merger" },
+];
+
+const CRUMB_LD = [
+  { name: "Home", url: "https://free-my-pdf.lovable.app/" },
+  { name: "PDF Merger", url: "https://free-my-pdf.lovable.app/merge" },
+];
+
 const Merger = () => {
   usePageHead({
     title: "PDF Merger — Combine PDF Files Online | Free My PDF",
     description:
       "Merge multiple PDF files into one document directly in your browser. Fast, private, and 100% client-side — no uploads.",
     canonical: "https://free-my-pdf.lovable.app/merge",
+    type: "website",
+    breadcrumbs: CRUMB_LD,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -219,6 +232,8 @@ const Merger = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
+
+          <Breadcrumbs items={CRUMBS} className="mb-6" />
           <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
