@@ -38,16 +38,16 @@ export const Header = () => {
           <span className="font-display font-bold text-lg">PDF Tools</span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => {
+        {/* Desktop Navigation — primary links only, rest live in the dropdown */}
+        <nav className="hidden lg:flex items-center gap-1">
+          {navItems.slice(0, 4).map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -60,8 +60,9 @@ export const Header = () => {
           })}
         </nav>
 
-        {/* Mobile Dropdown Menu */}
-        <div className="md:hidden">
+        {/* All tools dropdown */}
+        <div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
