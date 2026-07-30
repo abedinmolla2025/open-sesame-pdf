@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
+import { PdfFindingPreview } from "@/components/PdfFindingPreview";
 import {
   scanPdfForSecurityIssues,
   SEVERITY_ORDER,
@@ -62,17 +63,20 @@ const PdfSecurity = () => {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [triage, setTriage] = useState<Record<string, TriageStatus>>({});
+  const [activeLoc, setActiveLoc] = useState<{ findingId: string; index: number } | null>(null);
 
   const handleFileSelect = useCallback((f: File) => {
     setFile(f);
     setResult(null);
     setTriage({});
+    setActiveLoc(null);
   }, []);
 
   const handleClear = useCallback(() => {
     setFile(null);
     setResult(null);
     setTriage({});
+    setActiveLoc(null);
   }, []);
 
   const runScan = useCallback(async () => {
@@ -83,6 +87,7 @@ const PdfSecurity = () => {
       setResult(scan);
       setTriage({});
       setExpanded(new Set(scan.findings.slice(0, 1).map((f) => f.id)));
+      setActiveLoc(scan.findings[0] ? { findingId: scan.findings[0].id, index: 0 } : null);
       toast({
         title: "Scan complete",
         description: `${scan.findings.length} finding${scan.findings.length === 1 ? "" : "s"} in ${scan.durationMs} ms.`,
@@ -137,8 +142,13 @@ const PdfSecurity = () => {
   const toggleExpanded = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setActiveLoc((cur) => (cur?.findingId === id ? null : cur));
+      } else {
+        next.add(id);
+        setActiveLoc({ findingId: id, index: 0 });
+      }
       return next;
     });
   };
@@ -319,20 +329,53 @@ const PdfSecurity = () => {
                           {f.recommendation}
                         </p>
 
-                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                          {f.locations.map((l, i) => (
-                            <div key={`${l.offset}-${i}`} className="rounded-lg border border-border bg-background/60 p-3">
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                                <MapPin className="w-3 h-3" />
-                                <span className="tabular-nums">byte {l.offset.toLocaleString()}</span>
-                                <span>·</span>
-                                <span>{l.objectHint}</span>
-                              </div>
-                              <code className="block text-[11px] font-mono break-all text-foreground/80">
-                                {l.snippet}
-                              </code>
-                            </div>
-                          ))}
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <div className="space-y-2 max-h-72 lg:max-h-[28rem] overflow-y-auto pr-1">
+                            {f.locations.map((l, i) => {
+                              const selected =
+                                activeLoc?.findingId === f.id && activeLoc.index === i;
+                              return (
+                                <button
+                                  key={`${l.offset}-${i}`}
+                                  type="button"
+                                  onClick={() => setActiveLoc({ findingId: f.id, index: i })}
+                                  aria-pressed={selected}
+                                  className={cn(
+                                    "w-full text-left rounded-lg border bg-background/60 p-3 transition-colors",
+                                    selected
+                                      ? "border-primary/60 ring-1 ring-primary/40"
+                                      : "border-border hover:border-primary/40"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                                    <MapPin className="w-3 h-3" />
+                                    <span className="tabular-nums">byte {l.offset.toLocaleString()}</span>
+                                    <span>·</span>
+                                    <span>{l.objectHint}</span>
+                                    {l.page && (
+                                      <>
+                                        <span>·</span>
+                                        <span>page {l.page}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <code className="block text-[11px] font-mono break-all text-foreground/80">
+                                    {l.snippet}
+                                  </code>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {file && activeLoc?.findingId === f.id && (
+                            <PdfFindingPreview
+                              file={file}
+                              locations={f.locations}
+                              activeIndex={Math.min(activeLoc.index, f.locations.length - 1)}
+                              onSelect={(index) => setActiveLoc({ findingId: f.id, index })}
+                              label={f.title}
+                            />
+                          )}
                         </div>
 
                         <div className="flex flex-wrap gap-2 pt-1">
