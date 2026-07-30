@@ -66,18 +66,26 @@ export const Footer = () => (
       <nav aria-label="Company">
         <h2 className="font-medium mb-3 text-sm">Company</h2>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          {legal.map((t) => (
-            <li key={t.to}>
-              <Link to={t.to} className="hover:text-foreground transition-colors">
-                {t.label}
-              </Link>
-            </li>
-          ))}
+          {legal.map((t) =>
+            t.to.endsWith(".xml") ? (
+              <li key={t.to}>
+                <a href={t.to} className="hover:text-foreground transition-colors">
+                  {t.label}
+                </a>
+              </li>
+            ) : (
+              <li key={t.to}>
+                <Link to={t.to} className="hover:text-foreground transition-colors">
+                  {t.label}
+                </Link>
+              </li>
+            )
+          )}
         </ul>
       </nav>
     </div>
     <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-      © {new Date().getFullYear()} ImageTools Hub. All processing happens locally in your browser.
+      © {new Date().getFullYear()} ImagePDF Tools. All processing happens locally in your browser.
     </div>
   </footer>
 );
