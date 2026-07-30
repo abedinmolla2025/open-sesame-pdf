@@ -29,7 +29,7 @@ export const Footer = () => (
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <FileKey className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold">ImageTools Hub</span>
+          <span className="font-display font-bold">ImagePDF Tools</span>
         </Link>
         <p className="text-sm text-muted-foreground">
           Fast, private image and PDF utilities. Everything runs in your browser — no uploads, no
