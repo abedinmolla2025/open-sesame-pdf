@@ -122,19 +122,19 @@ export const PdfFindingPreview = ({
         )}
       </div>
 
-      <div className="relative mx-auto w-fit rounded-lg overflow-hidden border border-border bg-muted/30">
+      <div className="relative mx-auto w-full max-w-[520px] rounded-lg overflow-hidden border border-border bg-muted/30">
         {loading && (
-          <div className="flex items-center justify-center h-64 w-[320px] text-muted-foreground">
+          <div className="flex items-center justify-center h-64 w-full text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         )}
         {error && !loading && (
-          <div className="flex flex-col items-center justify-center gap-2 h-64 w-[320px] px-6 text-center text-xs text-muted-foreground">
+          <div className="flex flex-col items-center justify-center gap-2 h-64 w-full px-6 text-center text-xs text-muted-foreground">
             <FileWarning className="w-5 h-5" />
             {error}
           </div>
         )}
-        <canvas ref={canvasRef} className={cn("block", (loading || error) && "hidden")} />
+        <canvas ref={canvasRef} className={cn("block w-full h-auto", (loading || error) && "hidden")} />
 
         {!loading && !error &&
           onPage.map(({ l, i }) => {
