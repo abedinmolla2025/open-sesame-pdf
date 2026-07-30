@@ -7,7 +7,16 @@ export interface FindingLocation {
   objectHint: string;
   /** Short raw evidence snippet */
   snippet: string;
+  /** 1-based page number this offset most likely belongs to (undefined = document level) */
+  page?: number;
+  /** Longer raw context around the match, for the evidence viewer */
+  context?: string;
+  /** Index of the match inside `context` */
+  contextMatchStart?: number;
+  /** Length of the raw match */
+  matchLength?: number;
 }
+
 
 export interface SecurityFinding {
   id: string;
