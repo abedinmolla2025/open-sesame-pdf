@@ -71,7 +71,7 @@ export const Header = () => {
           <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
             <FileKey className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg">ImagePDF Tools</span>
+          <span className="font-display font-bold text-lg">Open Sesame PDF</span>
         </Link>
 
         <nav aria-label="Main" className="hidden lg:flex items-center gap-1">

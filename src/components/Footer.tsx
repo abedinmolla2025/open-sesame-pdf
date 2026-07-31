@@ -25,15 +25,16 @@ export const Footer = () => (
   <footer className="mt-20 border-t border-border bg-card/30">
     <div className="container py-12 grid gap-10 md:grid-cols-4">
       <div>
-        <Link to="/image-tools" className="flex items-center gap-2 mb-3">
+        <Link to="/" className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <FileKey className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold">ImagePDF Tools</span>
+          <span className="font-display font-bold">Open Sesame PDF</span>
         </Link>
         <p className="text-sm text-muted-foreground">
-          Fast, private image and PDF utilities. Everything runs in your browser — no uploads, no
-          accounts, no watermarks.
+          Open Sesame PDF is a free browser-based toolkit to merge, split, compress, edit and unlock
+          PDFs, and to remove backgrounds, resize, convert and upscale images. Every tool runs
+          locally with WebAssembly — no uploads, no accounts, no watermarks.
         </p>
       </div>
 
@@ -85,7 +86,7 @@ export const Footer = () => (
       </nav>
     </div>
     <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-      © {new Date().getFullYear()} ImagePDF Tools. All processing happens locally in your browser.
+      © {new Date().getFullYear()} Open Sesame PDF. All processing happens locally in your browser.
     </div>
   </footer>
 );
