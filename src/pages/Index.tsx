@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Lock, Shield, Zap, FileKey } from "lucide-react";
+import { Lock, Shield, Zap, FileKey, AlertCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { DropZone } from "@/components/DropZone";
 import { PasswordInput } from "@/components/PasswordInput";
 import { UnlockButton } from "@/components/UnlockButton";
 import { UnlockProgress } from "@/components/UnlockProgress";
+import { UnlockedPreview } from "@/components/UnlockedPreview";
 import { usePdfUnlocker } from "@/hooks/usePdfUnlocker";
 import { usePageHead } from "@/hooks/usePageHead";
 
@@ -127,14 +128,26 @@ const Index = () => {
                   />
                 )}
 
+                {status === "success" && unlockedPdf && (
+                  <UnlockedPreview pdfBytes={unlockedPdf} />
+                )}
+
                 {error && (
-                  <motion.p
+                  <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-destructive text-sm text-center"
+                    role="alert"
+                    className="flex gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-left"
                   >
-                    {error}
-                  </motion.p>
+                    <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-destructive">{error.title}</p>
+                      <p className="text-sm text-muted-foreground">{error.detail}</p>
+                      {error.hint && (
+                        <p className="text-xs text-muted-foreground">{error.hint}</p>
+                      )}
+                    </div>
+                  </motion.div>
                 )}
               </motion.div>
             )}
