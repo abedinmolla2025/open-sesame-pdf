@@ -31,7 +31,7 @@ const Index = () => {
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
-  const { status, error, progress, unlockPdf, downloadUnlockedPdf, reset } = usePdfUnlocker();
+  const { status, error, progress, unlockedPdf, unlockPdf, downloadUnlockedPdf, reset } = usePdfUnlocker();
 
   const handleFileSelect = useCallback((file: File) => {
     setSelectedFile(file);
