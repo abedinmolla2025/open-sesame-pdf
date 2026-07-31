@@ -155,7 +155,7 @@ const Home = () => {
           <div className="absolute -bottom-24 right-0 w-[380px] h-[380px] rounded-full blur-3xl bg-magic-indigo/15" />
         </div>
 
-        <div className="container relative z-10 px-4 pt-16 pb-10 md:pt-24 md:pb-14 text-center">
+        <div className="container relative z-10 px-4 md:px-8 pt-16 pb-10 md:pt-24 md:pb-14 text-center">
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -265,7 +265,7 @@ const Home = () => {
       </section>
 
       {/* Tool sections */}
-      <section id="tools" className="container px-4 py-12 md:py-16 scroll-mt-20">
+      <section id="tools" className="container px-4 md:px-8 py-12 md:py-16 scroll-mt-20">
         <h2 className="sr-only">All tools</h2>
         <div className="space-y-14">
           {SECTIONS.map((section) => (
@@ -316,7 +316,7 @@ const Home = () => {
       </section>
 
       {/* Privacy first */}
-      <section className="container px-4 py-12 md:py-16">
+      <section className="container px-4 md:px-8 py-12 md:py-16">
         <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-8 md:p-12">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute -top-24 -right-16 w-[380px] h-[380px] rounded-full blur-3xl bg-magic-gold/30" />
@@ -362,7 +362,7 @@ const Home = () => {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="container px-4 py-12 md:py-16 scroll-mt-20">
+      <section id="how-it-works" className="container px-4 md:px-8 py-12 md:py-16 scroll-mt-20">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="font-display text-3xl md:text-4xl font-bold">How it works</h2>
           <p className="mt-3 text-muted-foreground">
