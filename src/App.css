@@ -1,10 +1,9 @@
-/* Hide the Lovable 'Made with Lovable' badge on published deployments */
+/* Hide the Lovable 'Made with Lovable' badge on published deployments without affecting layout */
 .lovable-badge,
 [class*="lovable-badge"],
 [id*="lovable-badge"],
 a[href*="lovable.app"][target="_blank"]:has(> img),
 .lovable-badge-container {
-  display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
