@@ -139,7 +139,7 @@ export const Header = () => {
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex rounded-xl">
             <Link to="/contact">Sign In</Link>
           </Button>
-          <Button asChild size="sm" className="rounded-xl">
+          <Button asChild size="sm" className="hidden sm:inline-flex rounded-xl">
             <Link to="/image-tools">Get Started</Link>
           </Button>
         </div>
