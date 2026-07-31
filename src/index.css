@@ -47,6 +47,23 @@
     --shadow-glow: 0 0 60px -15px hsl(45 93% 50% / 0.4);
     --shadow-card: 0 10px 40px -10px hsl(222 47% 20% / 0.08);
 
+    /* Magic theme glows */
+    --magic-gold: 43 82% 82%;
+    --magic-indigo: 245 58% 51%;
+
+    /* Tool accent palette */
+    --tool-indigo: 243 75% 59%;
+    --tool-violet: 262 83% 58%;
+    --tool-sky: 199 89% 48%;
+    --tool-teal: 173 80% 36%;
+    --tool-emerald: 160 84% 39%;
+    --tool-amber: 38 92% 45%;
+    --tool-orange: 21 90% 48%;
+    --tool-rose: 347 77% 50%;
+    --tool-fuchsia: 292 84% 55%;
+    --tool-cyan: 189 94% 38%;
+
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 45 93% 47%;

@@ -57,7 +57,24 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        magic: {
+          gold: "hsl(var(--magic-gold))",
+          indigo: "hsl(var(--magic-indigo))",
+        },
+        tool: {
+          indigo: "hsl(var(--tool-indigo))",
+          violet: "hsl(var(--tool-violet))",
+          sky: "hsl(var(--tool-sky))",
+          teal: "hsl(var(--tool-teal))",
+          emerald: "hsl(var(--tool-emerald))",
+          amber: "hsl(var(--tool-amber))",
+          orange: "hsl(var(--tool-orange))",
+          rose: "hsl(var(--tool-rose))",
+          fuchsia: "hsl(var(--tool-fuchsia))",
+          cyan: "hsl(var(--tool-cyan))",
+        },
       },
+
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
