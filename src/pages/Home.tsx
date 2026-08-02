@@ -266,22 +266,22 @@ const Home = () => {
       </section>
 
       {/* Tool sections */}
-      <section id="tools" className="container px-4 md:px-8 py-12 md:py-16 scroll-mt-20">
+      <section id="tools" className="container px-4 md:px-8 py-10 md:py-16 scroll-mt-20">
         <h2 className="sr-only">All tools</h2>
-        <div className="space-y-14">
+        <div className="space-y-10 md:space-y-14">
           {SECTIONS.map((section) => (
             <div key={section.id} id={section.id} className="scroll-mt-20">
-              <div className="mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+              <div className="mb-5 md:mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h3 className="font-display text-2xl md:text-3xl font-bold">{section.title}</h3>
-                  <p className="text-muted-foreground mt-1">{section.tagline}</p>
+                  <h3 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">{section.title}</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-1 text-pretty">{section.tagline}</p>
                 </div>
-                <p className="text-sm text-muted-foreground tabular-nums">
+                <p className="text-xs sm:text-sm text-muted-foreground tabular-nums">
                   {section.tools.length} tools
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {section.tools.map((tool) => (
                   <motion.div
                     key={tool.path}
@@ -292,21 +292,23 @@ const Home = () => {
                   >
                     <Link
                       to={tool.path}
-                      className="group block h-full glass-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="group flex h-full items-start gap-4 sm:block glass-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span
                         className={cn(
-                          "mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110",
+                          "shrink-0 sm:mb-4 inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110",
                           ACCENT_CLASSES[tool.accent]
                         )}
                       >
                         <tool.icon className="w-5 h-5" />
                       </span>
-                      <h4 className="font-semibold text-lg flex items-center gap-1.5">
-                        {tool.name}
-                        <ArrowRight className="w-4 h-4 opacity-0 -translate-x-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0" />
-                      </h4>
-                      <p className="mt-1.5 text-sm text-muted-foreground">{tool.description}</p>
+                      <span className="min-w-0 block">
+                        <span className="font-semibold text-base sm:text-lg flex items-center gap-1.5">
+                          {tool.name}
+                          <ArrowRight className="w-4 h-4 shrink-0 opacity-0 -translate-x-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0" />
+                        </span>
+                        <span className="mt-1 block text-sm text-muted-foreground text-pretty">{tool.description}</span>
+                      </span>
                     </Link>
                   </motion.div>
                 ))}
@@ -317,8 +319,9 @@ const Home = () => {
       </section>
 
       {/* Privacy first */}
-      <section className="container px-4 md:px-8 py-12 md:py-16">
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-8 md:p-12">
+      <section className="container px-4 md:px-8 py-10 md:py-16">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 md:p-12">
+
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute -top-24 -right-16 w-[380px] h-[380px] rounded-full blur-3xl bg-magic-gold/30" />
             <div className="absolute -bottom-28 -left-16 w-[320px] h-[320px] rounded-full blur-3xl bg-magic-indigo/20" />
