@@ -66,13 +66,14 @@ export const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between gap-3">
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+      <div className="container flex h-16 items-center justify-between gap-2 px-4 md:px-8">
+        <Link to="/" className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 shrink-0 rounded-xl bg-primary flex items-center justify-center">
             <FileKey className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg">Open Sesame PDF</span>
+          <span className="font-display font-bold text-base sm:text-lg truncate">Open Sesame PDF</span>
         </Link>
+
 
         <nav aria-label="Main" className="hidden lg:flex items-center gap-1">
           {primaryNav.map((item) => {
