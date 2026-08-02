@@ -327,18 +327,18 @@ const Home = () => {
             <div className="absolute -bottom-28 -left-16 w-[320px] h-[320px] rounded-full blur-3xl bg-magic-indigo/20" />
           </div>
 
-          <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+          <div className="relative z-10 grid gap-6 md:gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 mb-5">
-                <ShieldCheck className="w-4 h-4 text-primary" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 mb-4 md:mb-5">
+                <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-primary">
                   Privacy First
                 </span>
               </div>
-              <h2 className="font-display text-3xl md:text-4xl font-bold">
+              <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-balance">
                 Your files never leave your device
               </h2>
-              <p className="mt-4 text-muted-foreground md:text-lg">
+              <p className="mt-3 md:mt-4 text-sm sm:text-base text-muted-foreground md:text-lg text-pretty">
                 Every tool on Open Sesame PDF runs entirely inside your browser using WebAssembly
                 and JavaScript. There is no upload step, no server-side queue and no temporary
                 storage — which means nothing to leak, subpoena or delete later. Turn off your
@@ -354,9 +354,9 @@ const Home = () => {
               ].map((item) => (
                 <li key={item.title} className="flex gap-3 rounded-2xl border border-border bg-background/60 p-4">
                   <item.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">{item.title}</p>
-                    <p className="text-sm text-muted-foreground">{item.text}</p>
+                    <p className="text-sm text-muted-foreground text-pretty">{item.text}</p>
                   </div>
                 </li>
               ))}
@@ -366,15 +366,16 @@ const Home = () => {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="container px-4 md:px-8 py-12 md:py-16 scroll-mt-20">
+      <section id="how-it-works" className="container px-4 md:px-8 py-10 md:py-16 scroll-mt-20">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="font-display text-3xl md:text-4xl font-bold">How it works</h2>
-          <p className="mt-3 text-muted-foreground">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold">How it works</h2>
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground text-pretty">
             Three steps, zero uploads. Open a tool and you are already done setting up.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div className="mt-8 md:mt-10 grid gap-4 sm:gap-5 sm:grid-cols-2 md:grid-cols-3">
+
           {STEPS.map((step, i) => (
             <motion.div
               key={step.title}
