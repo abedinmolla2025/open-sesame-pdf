@@ -383,28 +383,29 @@ const Home = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="glass-card p-6 text-center"
+              className="glass-card p-5 sm:p-6 text-center"
             >
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <span className="inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
                 <step.icon className="w-5 h-5" />
               </span>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
+              <p className="mt-3 sm:mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
                 Step {i + 1}
               </p>
-              <h3 className="mt-1 font-semibold text-lg">{step.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{step.text}</p>
+              <h3 className="mt-1 font-semibold text-base sm:text-lg">{step.title}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground text-pretty">{step.text}</p>
             </motion.div>
           ))}
         </div>
 
-        <div className="mt-10 text-center">
-          <Button asChild size="lg" className="h-14 px-8 text-base rounded-xl">
+        <div className="mt-8 md:mt-10 text-center">
+          <Button asChild size="lg" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base rounded-xl w-full sm:w-auto">
             <a href="#tools">
               Explore Tools
-              <ArrowRight className="w-5 h-5 ml-2" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
             </a>
           </Button>
         </div>
+
       </section>
     </Layout>
   );
