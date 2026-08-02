@@ -23,7 +23,7 @@ const pdfTools = [
 
 export const Footer = () => (
   <footer className="mt-20 border-t border-border bg-card/30">
-    <div className="container py-12 grid gap-10 md:grid-cols-4">
+    <div className="container px-4 md:px-8 py-10 md:py-12 grid gap-8 sm:grid-cols-2 md:gap-10 md:grid-cols-4">
       <div>
         <Link to="/" className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
