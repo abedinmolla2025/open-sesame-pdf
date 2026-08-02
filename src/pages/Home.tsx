@@ -155,22 +155,22 @@ const Home = () => {
           <div className="absolute -bottom-24 right-0 w-[380px] h-[380px] rounded-full blur-3xl bg-magic-indigo/15" />
         </div>
 
-        <div className="container relative z-10 px-4 md:px-8 pt-16 pb-10 md:pt-24 md:pb-14 text-center">
+        <div className="container relative z-10 px-4 md:px-8 pt-12 pb-8 md:pt-24 md:pb-14 text-center">
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 mb-7"
+            className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 sm:px-4 sm:py-2 mb-6"
           >
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">11 tools · No signup · Free forever</span>
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+            <span className="text-xs sm:text-sm font-medium text-primary">11 tools · No signup · Free forever</span>
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.05 }}
-            className="mx-auto max-w-4xl font-display font-bold tracking-tight text-4xl md:text-6xl lg:text-7xl leading-[1.05]"
+            className="mx-auto max-w-4xl font-display font-bold tracking-tight text-[1.9rem] sm:text-4xl md:text-6xl lg:text-7xl leading-[1.12] sm:leading-[1.05] text-balance"
           >
             Unlock the Magic of{" "}
             <span className="gradient-text">PDF &amp; Image Tools</span>
@@ -180,7 +180,7 @@ const Home = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.12 }}
-            className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-muted-foreground"
+            className="mx-auto mt-4 sm:mt-6 max-w-2xl text-base sm:text-lg md:text-xl text-muted-foreground text-pretty"
           >
             Fast, Secure, and 100% Browser-based. No registration, no file uploads to servers.
           </motion.p>
@@ -189,22 +189,22 @@ const Home = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.18 }}
-            className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3"
+            className="mt-7 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3"
           >
-            <Button asChild size="lg" className="h-14 px-8 text-base rounded-xl glow-effect w-full sm:w-auto">
+            <Button asChild size="lg" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base rounded-xl glow-effect w-full sm:w-auto">
               <a href="#tools">
                 Explore Tools
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </a>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="h-14 px-8 text-base rounded-xl bg-card/70 backdrop-blur w-full sm:w-auto"
+              className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base rounded-xl bg-card/70 backdrop-blur w-full sm:w-auto"
             >
               <a href="#how-it-works">
-                <PlayCircle className="w-5 h-5 mr-2" />
+                <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 How it Works
               </a>
             </Button>
@@ -215,21 +215,22 @@ const Home = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.24 }}
-            className="mx-auto mt-12 max-w-2xl"
+            className="mx-auto mt-8 sm:mt-12 max-w-2xl"
           >
-            <div className="relative rounded-2xl border border-border/70 bg-card/50 p-2 backdrop-blur-xl shadow-[var(--shadow-card)]">
+            <div className="relative rounded-2xl border border-border/70 bg-card/50 p-1.5 sm:p-2 backdrop-blur-xl shadow-[var(--shadow-card)]">
               <label htmlFor="tool-search" className="sr-only">
                 Search for a tool
               </label>
-              <Search className="pointer-events-none absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
               <Input
                 id="tool-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for a tool (e.g., Compress, Merge, OCR)..."
-                className="h-14 pl-14 pr-4 text-base bg-transparent border-0 focus-visible:ring-0 placeholder:text-muted-foreground"
+                placeholder="Search a tool (Compress, Merge, OCR)…"
+                className="h-12 sm:h-14 pl-10 sm:pl-14 pr-3 text-sm sm:text-base bg-transparent border-0 focus-visible:ring-0 placeholder:text-muted-foreground text-ellipsis"
               />
             </div>
+
 
             {results && (
               <div className="mt-3 rounded-2xl border border-border bg-card/90 backdrop-blur-xl p-2 text-left">
@@ -265,22 +266,22 @@ const Home = () => {
       </section>
 
       {/* Tool sections */}
-      <section id="tools" className="container px-4 md:px-8 py-12 md:py-16 scroll-mt-20">
+      <section id="tools" className="container px-4 md:px-8 py-10 md:py-16 scroll-mt-20">
         <h2 className="sr-only">All tools</h2>
-        <div className="space-y-14">
+        <div className="space-y-10 md:space-y-14">
           {SECTIONS.map((section) => (
             <div key={section.id} id={section.id} className="scroll-mt-20">
-              <div className="mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+              <div className="mb-5 md:mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h3 className="font-display text-2xl md:text-3xl font-bold">{section.title}</h3>
-                  <p className="text-muted-foreground mt-1">{section.tagline}</p>
+                  <h3 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">{section.title}</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-1 text-pretty">{section.tagline}</p>
                 </div>
-                <p className="text-sm text-muted-foreground tabular-nums">
+                <p className="text-xs sm:text-sm text-muted-foreground tabular-nums">
                   {section.tools.length} tools
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {section.tools.map((tool) => (
                   <motion.div
                     key={tool.path}
@@ -291,21 +292,23 @@ const Home = () => {
                   >
                     <Link
                       to={tool.path}
-                      className="group block h-full glass-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="group flex h-full items-start gap-4 sm:block glass-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span
                         className={cn(
-                          "mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110",
+                          "shrink-0 sm:mb-4 inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110",
                           ACCENT_CLASSES[tool.accent]
                         )}
                       >
                         <tool.icon className="w-5 h-5" />
                       </span>
-                      <h4 className="font-semibold text-lg flex items-center gap-1.5">
-                        {tool.name}
-                        <ArrowRight className="w-4 h-4 opacity-0 -translate-x-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0" />
-                      </h4>
-                      <p className="mt-1.5 text-sm text-muted-foreground">{tool.description}</p>
+                      <span className="min-w-0 block">
+                        <span className="font-semibold text-base sm:text-lg flex items-center gap-1.5">
+                          {tool.name}
+                          <ArrowRight className="w-4 h-4 shrink-0 opacity-0 -translate-x-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0" />
+                        </span>
+                        <span className="mt-1 block text-sm text-muted-foreground text-pretty">{tool.description}</span>
+                      </span>
                     </Link>
                   </motion.div>
                 ))}
@@ -316,25 +319,26 @@ const Home = () => {
       </section>
 
       {/* Privacy first */}
-      <section className="container px-4 md:px-8 py-12 md:py-16">
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-8 md:p-12">
+      <section className="container px-4 md:px-8 py-10 md:py-16">
+        <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 md:p-12">
+
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute -top-24 -right-16 w-[380px] h-[380px] rounded-full blur-3xl bg-magic-gold/30" />
             <div className="absolute -bottom-28 -left-16 w-[320px] h-[320px] rounded-full blur-3xl bg-magic-indigo/20" />
           </div>
 
-          <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+          <div className="relative z-10 grid gap-6 md:gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 mb-5">
-                <ShieldCheck className="w-4 h-4 text-primary" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 mb-4 md:mb-5">
+                <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-primary">
                   Privacy First
                 </span>
               </div>
-              <h2 className="font-display text-3xl md:text-4xl font-bold">
+              <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-balance">
                 Your files never leave your device
               </h2>
-              <p className="mt-4 text-muted-foreground md:text-lg">
+              <p className="mt-3 md:mt-4 text-sm sm:text-base text-muted-foreground md:text-lg text-pretty">
                 Every tool on Open Sesame PDF runs entirely inside your browser using WebAssembly
                 and JavaScript. There is no upload step, no server-side queue and no temporary
                 storage — which means nothing to leak, subpoena or delete later. Turn off your
@@ -350,9 +354,9 @@ const Home = () => {
               ].map((item) => (
                 <li key={item.title} className="flex gap-3 rounded-2xl border border-border bg-background/60 p-4">
                   <item.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">{item.title}</p>
-                    <p className="text-sm text-muted-foreground">{item.text}</p>
+                    <p className="text-sm text-muted-foreground text-pretty">{item.text}</p>
                   </div>
                 </li>
               ))}
@@ -362,15 +366,16 @@ const Home = () => {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="container px-4 md:px-8 py-12 md:py-16 scroll-mt-20">
+      <section id="how-it-works" className="container px-4 md:px-8 py-10 md:py-16 scroll-mt-20">
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="font-display text-3xl md:text-4xl font-bold">How it works</h2>
-          <p className="mt-3 text-muted-foreground">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold">How it works</h2>
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground text-pretty">
             Three steps, zero uploads. Open a tool and you are already done setting up.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div className="mt-8 md:mt-10 grid gap-4 sm:gap-5 sm:grid-cols-2 md:grid-cols-3">
+
           {STEPS.map((step, i) => (
             <motion.div
               key={step.title}
@@ -378,28 +383,29 @@ const Home = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="glass-card p-6 text-center"
+              className="glass-card p-5 sm:p-6 text-center"
             >
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <span className="inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
                 <step.icon className="w-5 h-5" />
               </span>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
+              <p className="mt-3 sm:mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
                 Step {i + 1}
               </p>
-              <h3 className="mt-1 font-semibold text-lg">{step.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{step.text}</p>
+              <h3 className="mt-1 font-semibold text-base sm:text-lg">{step.title}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground text-pretty">{step.text}</p>
             </motion.div>
           ))}
         </div>
 
-        <div className="mt-10 text-center">
-          <Button asChild size="lg" className="h-14 px-8 text-base rounded-xl">
+        <div className="mt-8 md:mt-10 text-center">
+          <Button asChild size="lg" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base rounded-xl w-full sm:w-auto">
             <a href="#tools">
               Explore Tools
-              <ArrowRight className="w-5 h-5 ml-2" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
             </a>
           </Button>
         </div>
+
       </section>
     </Layout>
   );
