@@ -155,22 +155,22 @@ const Home = () => {
           <div className="absolute -bottom-24 right-0 w-[380px] h-[380px] rounded-full blur-3xl bg-magic-indigo/15" />
         </div>
 
-        <div className="container relative z-10 px-4 md:px-8 pt-16 pb-10 md:pt-24 md:pb-14 text-center">
+        <div className="container relative z-10 px-4 md:px-8 pt-12 pb-8 md:pt-24 md:pb-14 text-center">
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 mb-7"
+            className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 sm:px-4 sm:py-2 mb-6"
           >
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">11 tools · No signup · Free forever</span>
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+            <span className="text-xs sm:text-sm font-medium text-primary">11 tools · No signup · Free forever</span>
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.05 }}
-            className="mx-auto max-w-4xl font-display font-bold tracking-tight text-4xl md:text-6xl lg:text-7xl leading-[1.05]"
+            className="mx-auto max-w-4xl font-display font-bold tracking-tight text-[1.9rem] sm:text-4xl md:text-6xl lg:text-7xl leading-[1.12] sm:leading-[1.05] text-balance"
           >
             Unlock the Magic of{" "}
             <span className="gradient-text">PDF &amp; Image Tools</span>
@@ -180,7 +180,7 @@ const Home = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.12 }}
-            className="mx-auto mt-6 max-w-2xl text-lg md:text-xl text-muted-foreground"
+            className="mx-auto mt-4 sm:mt-6 max-w-2xl text-base sm:text-lg md:text-xl text-muted-foreground text-pretty"
           >
             Fast, Secure, and 100% Browser-based. No registration, no file uploads to servers.
           </motion.p>
@@ -189,22 +189,22 @@ const Home = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.18 }}
-            className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3"
+            className="mt-7 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3"
           >
-            <Button asChild size="lg" className="h-14 px-8 text-base rounded-xl glow-effect w-full sm:w-auto">
+            <Button asChild size="lg" className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base rounded-xl glow-effect w-full sm:w-auto">
               <a href="#tools">
                 Explore Tools
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </a>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="h-14 px-8 text-base rounded-xl bg-card/70 backdrop-blur w-full sm:w-auto"
+              className="h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base rounded-xl bg-card/70 backdrop-blur w-full sm:w-auto"
             >
               <a href="#how-it-works">
-                <PlayCircle className="w-5 h-5 mr-2" />
+                <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 How it Works
               </a>
             </Button>
@@ -215,21 +215,22 @@ const Home = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.24 }}
-            className="mx-auto mt-12 max-w-2xl"
+            className="mx-auto mt-8 sm:mt-12 max-w-2xl"
           >
-            <div className="relative rounded-2xl border border-border/70 bg-card/50 p-2 backdrop-blur-xl shadow-[var(--shadow-card)]">
+            <div className="relative rounded-2xl border border-border/70 bg-card/50 p-1.5 sm:p-2 backdrop-blur-xl shadow-[var(--shadow-card)]">
               <label htmlFor="tool-search" className="sr-only">
                 Search for a tool
               </label>
-              <Search className="pointer-events-none absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
               <Input
                 id="tool-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for a tool (e.g., Compress, Merge, OCR)..."
-                className="h-14 pl-14 pr-4 text-base bg-transparent border-0 focus-visible:ring-0 placeholder:text-muted-foreground"
+                placeholder="Search a tool (Compress, Merge, OCR)…"
+                className="h-12 sm:h-14 pl-10 sm:pl-14 pr-3 text-sm sm:text-base bg-transparent border-0 focus-visible:ring-0 placeholder:text-muted-foreground text-ellipsis"
               />
             </div>
+
 
             {results && (
               <div className="mt-3 rounded-2xl border border-border bg-card/90 backdrop-blur-xl p-2 text-left">
