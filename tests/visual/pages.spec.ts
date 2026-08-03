@@ -29,7 +29,7 @@ export async function stabilize(page: Page) {
   // Dismiss consent / install prompts so they don't overlay content.
   await page.evaluate(() => {
     try {
-      localStorage.setItem("cookie-consent", "accepted");
+      localStorage.setItem("imagetools-cookie-consent", "accepted");
       localStorage.setItem("pwa-install-dismissed", "1");
     } catch {
       /* ignore */
