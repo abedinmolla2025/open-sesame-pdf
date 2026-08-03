@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { gotoStable } from "./pages.spec";
+import { gotoStable } from "./helpers";
 
 /**
  * Component-level snapshots. These catch regressions in the sticky header,
