@@ -43,6 +43,7 @@ const navItems = [
   { path: "/passport-photo", label: "Passport Photo", icon: IdCard, description: "Make passport & visa photos" },
   { path: "/unlock-pdf", label: "PDF Unlocker", icon: FileKey, description: "Remove password protection" },
   { path: "/editor", label: "PDF Editor", icon: FileEdit, description: "Edit text in PDFs" },
+  { path: "/ai-pdf-assistant", label: "AI PDF Assistant", icon: Sparkles, description: "Summarize, ask and protect PDFs" },
   { path: "/compress", label: "PDF Compressor", icon: FileArchive, description: "Shrink PDF file size" },
   { path: "/merge", label: "PDF Merger", icon: Combine, description: "Combine multiple PDFs" },
   { path: "/split", label: "PDF Splitter", icon: Scissors, description: "Split PDFs by page or range" },

@@ -71,6 +71,7 @@ const SECTIONS: ToolSection[] = [
       { name: "Split PDF", path: "/split", description: "Split by page or range and download as a ZIP.", icon: Scissors, accent: "violet" },
       { name: "Compress PDF", path: "/compress", description: "Hit an exact target size like 100 KB or 200 KB.", icon: FileArchive, accent: "sky" },
       { name: "PDF Editor", path: "/editor", description: "Edit text directly inside an existing PDF.", icon: FileEdit, accent: "teal" },
+      { name: "AI PDF Assistant", path: "/ai-pdf-assistant", description: "Summarize, ask questions and protect sensitive data.", icon: Sparkles, accent: "fuchsia" },
       { name: "Unlock PDF", path: "/unlock-pdf", description: "Remove password protection from your own PDFs.", icon: FileKey, accent: "amber" },
     ],
   },

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, X } from "lucide-react";
 import { validatePdfFile } from "@/lib/pdfValidation";
 import { useToast } from "@/hooks/use-toast";
+import { PremiumIconFrame } from "@/components/PremiumIcon";
 
 interface DropZoneProps {
   onFileSelect: (file: File) => void;
@@ -85,9 +86,7 @@ export const DropZone = ({ onFileSelect, selectedFile, onClear }: DropZoneProps)
             className="glass-card p-6 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                <FileText className="w-6 h-6 text-primary" />
-              </div>
+              <PremiumIconFrame tone="gold" size="md" aria-hidden="true"><FileText /></PremiumIconFrame>
               <div>
                 <p className="font-medium text-foreground">{selectedFile.name}</p>
                 <p className="text-sm text-muted-foreground">
@@ -114,10 +113,13 @@ export const DropZone = ({ onFileSelect, selectedFile, onClear }: DropZoneProps)
             onDragOver={handleDrag}
             onDrop={handleDrop}
             className={`
-              relative cursor-pointer block w-full p-12 rounded-2xl border-2 border-dashed transition-all duration-300
-              ${isDragging 
-                ? "border-primary bg-primary/10 scale-[1.02]" 
-                : "border-border hover:border-primary/50 bg-card/50 hover:bg-card/80"
+              group relative cursor-pointer block w-full overflow-hidden rounded-3xl border-2 border-dashed p-8 sm:p-12 transition-all duration-300
+              bg-gradient-to-br from-card/90 via-card/60 to-primary/[0.04] backdrop-blur
+              before:pointer-events-none before:absolute before:-right-16 before:-top-16 before:h-44 before:w-44 before:rounded-full before:bg-primary/10 before:blur-2xl
+              after:pointer-events-none after:absolute after:inset-3 after:rounded-2xl after:border after:border-white/20
+              ${isDragging
+                ? "scale-[1.01] border-primary bg-primary/10 shadow-[0_0_50px_hsl(var(--primary)/0.18)]"
+                : "border-primary/25 shadow-[0_16px_45px_hsl(var(--primary)/0.06)] hover:border-primary/60 hover:shadow-[0_0_40px_hsl(var(--primary)/0.12)]"
               }
             `}
           >
@@ -127,23 +129,20 @@ export const DropZone = ({ onFileSelect, selectedFile, onClear }: DropZoneProps)
               onChange={handleFileInput}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <div className="flex flex-col items-center gap-4">
-              <motion.div
-                animate={isDragging ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
-                className={`
-                  w-16 h-16 rounded-2xl flex items-center justify-center transition-colors
-                  ${isDragging ? "bg-primary/30" : "bg-secondary"}
-                `}
-              >
-                <Upload className={`w-8 h-8 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+            <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+              <motion.div animate={isDragging ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 18 }}>
+                <PremiumIconFrame tone={isDragging ? "gold" : "blue"} size="lg" aria-hidden="true"><Upload /></PremiumIconFrame>
               </motion.div>
-              <div className="text-center">
-                <p className="text-lg font-medium text-foreground mb-1">
-                  {isDragging ? "Drop your PDF here" : "Drag & drop your PDF here"}
+              <div>
+                <p className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                  {isDragging ? "Release to upload your PDF" : "Drag & drop your PDF here"}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  or click to browse files
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">or <span className="font-medium text-primary">click to browse</span> from your device</p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-muted-foreground">
+                  <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">PDF only</span>
+                  <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">Up to 30 MB</span>
+                  <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">100% private</span>
+                </div>
               </div>
             </div>
           </motion.label>

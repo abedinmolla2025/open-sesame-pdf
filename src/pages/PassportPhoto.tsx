@@ -760,9 +760,10 @@ const PassportPhoto = () => {
               if (f) loadFile(f);
             }}
             className={cn(
-              "relative cursor-pointer block w-full p-12 rounded-2xl border-2 border-dashed transition-all duration-300",
-              dropActive ? "border-primary bg-primary/10" : "border-border hover:border-primary/50 bg-card/50"
+              "premium-dropzone relative cursor-pointer block w-full p-10 sm:p-12",
+              dropActive && "scale-[1.01]"
             )}
+            data-dragging={dropActive}
           >
             <input
               type="file"

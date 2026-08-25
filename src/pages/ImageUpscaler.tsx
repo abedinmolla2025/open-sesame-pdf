@@ -104,7 +104,7 @@ const upscaleImage = async (
   const targetH = Math.round(img.naturalHeight * scale);
 
   let current = makeCanvas(img.naturalWidth, img.naturalHeight);
-  let ctx = current.getContext("2d")!;
+  const ctx = current.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
   let step = 0;
@@ -342,11 +342,8 @@ const ImageUpscaler = () => {
               setIsDragging(false);
               if (e.dataTransfer.files?.[0]) void acceptFile(e.dataTransfer.files[0]);
             }}
-            className={`relative cursor-pointer block w-full p-12 rounded-2xl border-2 border-dashed transition-all ${
-              isDragging
-                ? "border-primary bg-primary/10 scale-[1.01]"
-                : "border-border hover:border-primary/50 bg-card/50 hover:bg-card/80"
-            }`}
+            className={`premium-dropzone relative cursor-pointer block w-full p-10 sm:p-12 ${isDragging ? "scale-[1.01]" : ""}`}
+            data-dragging={isDragging}
           >
             <input
               ref={inputRef}

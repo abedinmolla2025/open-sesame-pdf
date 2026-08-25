@@ -24,6 +24,7 @@ const BackgroundRemover = lazy(() => import("./pages/BackgroundRemover"));
 const ImageResizer = lazy(() => import("./pages/ImageResizer"));
 const WebpConverter = lazy(() => import("./pages/WebpConverter"));
 const ImageOcr = lazy(() => import("./pages/ImageOcr"));
+const AiPdfAssistant = lazy(() => import("./pages/AiPdfAssistant"));
 const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/image-resize" element={<ImageResizer />} />
             <Route path="/webp-converter" element={<WebpConverter />} />
             <Route path="/image-to-text" element={<ImageOcr />} />
+            <Route path="/ai-pdf-assistant" element={<AiPdfAssistant />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />

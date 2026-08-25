@@ -273,14 +273,8 @@ const Merger = () => {
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
-                className={`
-                  relative cursor-pointer block w-full p-8 rounded-2xl border-2 border-dashed transition-all duration-300
-                  ${
-                    isDragging
-                      ? "border-primary bg-primary/10 scale-[1.02]"
-                      : "border-border hover:border-primary/50 bg-card/50 hover:bg-card/80"
-                  }
-                `}
+                className={`premium-dropzone relative cursor-pointer block w-full p-8 sm:p-10 ${isDragging ? "scale-[1.02]" : ""}`}
+                data-dragging={isDragging}
               >
                 <input
                   ref={inputRef}

@@ -134,4 +134,29 @@
   .glow-effect {
     box-shadow: var(--shadow-glow);
   }
+
+  .premium-dropzone {
+    @apply relative overflow-hidden rounded-3xl border-2 border-dashed border-primary/25 bg-gradient-to-br from-card/90 via-card/60 to-primary/[0.04] backdrop-blur transition-all duration-300;
+    box-shadow: 0 16px 45px hsl(var(--primary) / 0.06);
+  }
+
+  .premium-dropzone::before {
+    content: "";
+    @apply pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-primary/10 blur-2xl;
+  }
+
+  .premium-dropzone::after {
+    content: "";
+    @apply pointer-events-none absolute inset-3 rounded-2xl border border-white/20;
+  }
+
+  .premium-dropzone:hover {
+    @apply border-primary/60;
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.12);
+  }
+
+  .premium-dropzone[data-dragging="true"] {
+    @apply scale-[1.01] border-primary bg-primary/10;
+    box-shadow: 0 0 50px hsl(var(--primary) / 0.18);
+  }
 }
