@@ -66,7 +66,7 @@ export const EditorToolbar = ({
       className="sticky top-20 z-40 mb-4"
     >
       {/* Single compact row */}
-      <div className="bg-card border border-border rounded-xl p-1.5 flex items-center gap-1">
+      <div className="bg-card border border-border rounded-xl p-1.5 flex flex-wrap items-center gap-1 overflow-visible">
         {/* Undo/Redo */}
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onUndo} disabled={!canUndo} aria-label="Undo">
           <Undo2 className="w-3.5 h-3.5" />
@@ -100,6 +100,8 @@ export const EditorToolbar = ({
           variant="outline"
           size="sm"
           className="h-7 gap-1 px-2 text-[11px]"
+          aria-label={`Choose editor tool, current tool ${activeToolData?.label ?? "Select"}`}
+          title={`Current tool: ${activeToolData?.label ?? "Select"}`}
           onClick={() => setToolsOpen(!toolsOpen)}
         >
           <ActiveIcon className="w-3.5 h-3.5" />
@@ -107,7 +109,7 @@ export const EditorToolbar = ({
           <ChevronDown className={cn("w-3 h-3 transition-transform", toolsOpen && "rotate-180")} />
         </Button>
 
-        <div className="flex-1" />
+        <div className="hidden sm:flex flex-1" />
 
         {/* Page actions */}
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRotatePage} aria-label="Rotate page">
@@ -124,7 +126,7 @@ export const EditorToolbar = ({
         <Button variant="outline" size="sm" onClick={onReset} className="h-7 px-2 text-[11px]">
           <RotateCcw className="w-3 h-3" />
         </Button>
-        <Button size="sm" onClick={onSave} disabled={isSaving} className="h-7 px-2.5 text-[11px] bg-primary hover:bg-primary/90 gap-1">
+        <Button size="sm" onClick={onSave} disabled={isSaving} className="h-8 w-full sm:w-auto sm:ml-auto px-3 text-xs bg-primary hover:bg-primary/90 gap-1 order-last">
           <Save className="w-3 h-3" />
           {isSaving ? "..." : "Save PDF"}
         </Button>
@@ -139,7 +141,7 @@ export const EditorToolbar = ({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-card border border-border border-t-0 rounded-b-xl p-1.5 flex flex-wrap items-center gap-0.5">
+            <div className="bg-card border border-border border-t-0 rounded-b-xl p-1.5 flex max-h-[40vh] overflow-y-auto flex-wrap items-center gap-0.5">
               {toolGroups.map(({ tool, icon: Icon, label, group }, i) => {
                 const prevGroup = i > 0 ? toolGroups[i - 1].group : null;
                 const showSep = prevGroup && prevGroup !== group;

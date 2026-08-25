@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
+import { PremiumIconFrame } from "@/components/PremiumIcon";
 
 const SITE_URL = "https://open-sesame-pdf.lovable.app";
 
@@ -246,9 +247,9 @@ const Home = () => {
                           to={t.path}
                           className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-muted transition-colors"
                         >
-                          <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg ring-1", ACCENT_CLASSES[t.accent])}>
-                            <t.icon className="w-4 h-4" />
-                          </span>
+                          <PremiumIconFrame tone="blue" size="sm" className="size-9 rounded-lg [&>span]:size-6 [&_svg]:size-3.5" aria-hidden="true">
+                            <t.icon />
+                          </PremiumIconFrame>
                           <span className="min-w-0">
                             <span className="block text-sm font-medium truncate">{t.name}</span>
                             <span className="block text-xs text-muted-foreground truncate">{t.description}</span>
@@ -294,14 +295,9 @@ const Home = () => {
                       to={tool.path}
                       className="group flex h-full items-start gap-4 sm:block glass-card p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <span
-                        className={cn(
-                          "shrink-0 sm:mb-4 inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl ring-1 transition-transform duration-300 group-hover:scale-110",
-                          ACCENT_CLASSES[tool.accent]
-                        )}
-                      >
-                        <tool.icon className="w-5 h-5" />
-                      </span>
+                      <PremiumIconFrame tone="gold" size="md" className="shrink-0 sm:mb-4 size-10 sm:size-11 rounded-xl transition-transform duration-300 group-hover:scale-110" aria-hidden="true">
+                        <tool.icon />
+                      </PremiumIconFrame>
                       <span className="min-w-0 block">
                         <span className="font-semibold text-base sm:text-lg flex items-center gap-1.5">
                           {tool.name}
@@ -353,7 +349,7 @@ const Home = () => {
                 { icon: UserX, title: "No accounts", text: "No sign-up, no tracking of your documents." },
               ].map((item) => (
                 <li key={item.title} className="flex gap-3 rounded-2xl border border-border bg-background/60 p-4">
-                  <item.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <PremiumIconFrame tone="mint" size="sm" className="size-8 rounded-lg [&>span]:size-5 [&_svg]:size-3" aria-hidden="true"><item.icon /></PremiumIconFrame>
                   <div className="min-w-0">
                     <p className="font-medium text-sm">{item.title}</p>
                     <p className="text-sm text-muted-foreground text-pretty">{item.text}</p>
@@ -385,9 +381,9 @@ const Home = () => {
               transition={{ duration: 0.4, delay: i * 0.08 }}
               className="glass-card p-5 sm:p-6 text-center"
             >
-              <span className="inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-                <step.icon className="w-5 h-5" />
-              </span>
+              <PremiumIconFrame tone="violet" size="lg" label={`${step.title} icon`}>
+                <step.icon />
+              </PremiumIconFrame>
               <p className="mt-3 sm:mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground tabular-nums">
                 Step {i + 1}
               </p>

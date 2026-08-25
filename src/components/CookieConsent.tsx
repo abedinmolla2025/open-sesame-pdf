@@ -31,22 +31,22 @@ export const CookieConsent = () => {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed bottom-4 inset-x-4 z-50 mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 backdrop-blur p-4 shadow-lg"
+      className="fixed bottom-2 inset-x-2 sm:bottom-4 sm:inset-x-4 z-50 mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 backdrop-blur p-3 sm:p-4 shadow-lg"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <Cookie className="w-5 h-5 text-primary shrink-0" />
-        <p className="text-sm text-muted-foreground flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
+        <Cookie className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed flex-1">
           We use essential cookies to run the site and optional cookies for advertising and
           analytics. Your files never leave your device.{" "}
           <Link to="/privacy" className="text-primary underline underline-offset-4">
             Privacy policy
           </Link>
         </p>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => decide("rejected")}>
+        <div className="flex justify-end gap-2 sm:shrink-0">
+          <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => decide("rejected")}>
             Essential only
           </Button>
-          <Button size="sm" onClick={() => decide("accepted")}>
+          <Button size="sm" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => decide("accepted")}>
             Accept all
           </Button>
         </div>

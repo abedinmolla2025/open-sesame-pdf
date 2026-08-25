@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { usePageHead } from "@/hooks/usePageHead";
 import { cn } from "@/lib/utils";
+import { PremiumIconFrame } from "@/components/PremiumIcon";
 import { IMAGE_TOOLS, SITE_URL, TOOL_CATEGORIES, type ToolCategory } from "@/data/imageTools";
 
 const FEATURES = [
@@ -160,9 +161,9 @@ const ImageToolsHub = () => {
                     to={t.path}
                     className="group block h-full rounded-2xl border border-border bg-card/50 backdrop-blur p-6 hover:border-primary/50 hover:shadow-lg transition-all"
                   >
-                    <span className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                      <t.icon className="w-5 h-5 text-primary" aria-hidden />
-                    </span>
+                      <PremiumIconFrame tone="gold" size="md" className="mb-4" aria-hidden="true">
+                        <t.icon />
+                      </PremiumIconFrame>
                     <h3 className="font-display font-semibold group-hover:text-primary transition-colors">
                       {t.name}
                     </h3>
@@ -212,7 +213,7 @@ const ImageToolsHub = () => {
                   className="group rounded-2xl border border-border bg-card/50 backdrop-blur p-5 hover:border-primary/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <t.icon className="w-5 h-5 text-primary" aria-hidden />
+                    <PremiumIconFrame tone="blue" size="sm" className="size-8 rounded-lg [&>span]:size-5 [&_svg]:size-3" aria-hidden="true"><t.icon /></PremiumIconFrame>
                     <h3 className="font-medium group-hover:text-primary transition-colors">{t.name}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">{t.description}</p>
@@ -231,7 +232,7 @@ const ImageToolsHub = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => (
               <div key={f.title} className="rounded-2xl border border-border bg-card/50 backdrop-blur p-6">
-                <f.icon className="w-5 h-5 text-primary mb-3" aria-hidden />
+                <PremiumIconFrame tone="mint" size="sm" className="mb-3" aria-hidden="true"><f.icon /></PremiumIconFrame>
                 <h3 className="font-medium mb-1">{f.title}</h3>
                 <p className="text-sm text-muted-foreground">{f.text}</p>
               </div>

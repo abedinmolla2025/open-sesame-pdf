@@ -9,6 +9,7 @@ import { EditorToolbar } from "@/components/EditorToolbar";
 import { usePdfEditor } from "@/hooks/usePdfEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePageHead } from "@/hooks/usePageHead";
+import { EditorQuickTools } from "@/components/EditorQuickTools";
 
 const CRUMBS = [
   { name: "Home", to: "/" },
@@ -57,6 +58,12 @@ const Editor = () => {
   const handleFileSelect = useCallback((file: File) => { setSelectedFile(file); loadPdf(file); }, [loadPdf]);
   const handleClear = useCallback(() => { setSelectedFile(null); reset(); }, [reset]);
   const handleSave = useCallback(() => { if (selectedFile) savePdf(selectedFile.name); }, [selectedFile, savePdf]);
+  const handleQuickAddText = useCallback(() => {
+    const page = pages[currentPage];
+    if (!page) return;
+    addTextBlock(page.pageIndex, Math.max(24, page.width * 0.12), Math.max(24, page.height * 0.12));
+    setActiveTool("select");
+  }, [addTextBlock, currentPage, pages, setActiveTool]);
   const handleZoomIn = () => setScale(Math.min(scale + 0.25, 3));
   const handleZoomOut = () => setScale(Math.max(scale - 0.25, 0.5));
 
@@ -86,12 +93,12 @@ const Editor = () => {
 
   return (
     <Layout>
-      <div className="relative min-h-screen">
+      <div className="relative min-h-screen min-w-0 overflow-x-clip">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 py-8 md:py-12">
+        <div className="relative z-10 container mx-auto min-w-0 max-w-full overflow-x-clip px-4 py-8 md:py-12">
 
           <Breadcrumbs items={CRUMBS} className="mb-6" />
           <motion.header
@@ -174,7 +181,7 @@ const Editor = () => {
                   <button onClick={() => { /* restorePage handled via undo */ undo(); }} className="text-primary hover:underline text-sm">Undo to restore</button>
                 </div>
               ) : currentPageData && (
-                <div className="bg-muted/30 rounded-xl border border-border p-4 overflow-auto max-h-[70vh]">
+                <div className="w-full min-w-0 bg-muted/30 rounded-xl border border-border p-2 sm:p-4 overflow-x-auto overflow-y-auto max-h-[70vh]">
                   <div className="min-w-fit" style={{ transform: currentPageData.rotation ? `rotate(${currentPageData.rotation}deg)` : undefined }}>
                     <PdfEditorCanvas
                       page={currentPageData}
@@ -229,6 +236,14 @@ const Editor = () => {
                   ))}
                 </div>
               )}
+
+              <EditorQuickTools
+                textBlocks={textBlocks}
+                currentPage={currentPage}
+                onReplaceText={(id, text) => updateTextBlock(id, { text, isEditing: false, isModified: true })}
+                onAddText={handleQuickAddText}
+                onSetTool={(tool) => setActiveTool(tool)}
+              />
 
               {(textBlocks.some(b => b.isModified) || whiteouts.length > 0 || images.length > 0 || shapes.length > 0 || annotations.length > 0 || freehandPaths.length > 0 || pages.some(p => p.isDeleted || p.rotation !== 0)) && (
                 <p className="text-center text-sm text-muted-foreground mt-4">

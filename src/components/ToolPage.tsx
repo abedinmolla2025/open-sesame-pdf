@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { IMAGE_TOOLS, SITE_URL, getTool, relatedTools } from "@/data/imageTools";
+import { PremiumIconFrame } from "@/components/PremiumIcon";
 
 export interface Faq {
   q: string;
@@ -109,9 +110,9 @@ export const ToolPage = ({
         >
           <div className="flex items-center gap-3 mb-3">
             {Icon && (
-              <span className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-primary" />
-              </span>
+              <PremiumIconFrame tone="gold" size="lg" label={`${tool?.name ?? title} icon`}>
+                <Icon className="w-5 h-5" />
+              </PremiumIconFrame>
             )}
             <h1 className="text-3xl md:text-4xl font-display font-bold">{tool?.name ?? title}</h1>
           </div>
