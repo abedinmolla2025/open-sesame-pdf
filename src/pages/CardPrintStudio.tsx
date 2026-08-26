@@ -181,10 +181,13 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   }
   if (panels.length !== 2) return null;
 
+  // Keep the complete detected panel width. A source-level horizontal nudge
+  // changes the effective scale and makes the PAN artwork look over-zoomed;
+  // the tight panel bounds above already remove the outside paper/gutter.
   return panels.map((panel) => ({
     x: Math.max(0, panel.start),
     y: top,
-    width: Math.min(width - panel.start, panel.end - panel.start + 1),
+    width: Math.max(1, Math.min(width - panel.start, panel.end - panel.start + 1)),
     height: bottom - top,
   }));
 };
