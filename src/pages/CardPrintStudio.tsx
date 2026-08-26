@@ -34,6 +34,13 @@ interface CardPage {
   src: string;
 }
 
+interface CanvasRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 const cardTemplates: Array<{
   id: CardKind;
   label: string;
@@ -56,7 +63,124 @@ const cardNames: Record<CardKind, string> = {
   custom: "custom-id-card",
 };
 
-const renderPdfPages = async (file: File): Promise<CardPage[]> => {
+const cropCanvasToDataUrl = (source: HTMLCanvasElement, rect: CanvasRect): string => {
+  const crop = document.createElement("canvas");
+  crop.width = Math.max(1, Math.round(rect.width));
+  crop.height = Math.max(1, Math.round(rect.height));
+  const context = crop.getContext("2d");
+  if (!context) throw new Error("Could not prepare the card crop.");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(source, rect.x, rect.y, rect.width, rect.height, 0, 0, crop.width, crop.height);
+  return crop.toDataURL("image/png");
+};
+
+const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
+  const { width, height } = canvas;
+  if (width < 500 || height < 700) return null;
+
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  const pixels = context.getImageData(0, 0, width, height).data;
+  const isCardArea = (offset: number) => {
+    const red = pixels[offset];
+    const green = pixels[offset + 1];
+    const blue = pixels[offset + 2];
+    return Math.min(red, green, blue) < 243 || blue - red > 8 || (blue - red > 4 && green - red > 4);
+  };
+  const isCardBlue = (offset: number) => {
+    const red = pixels[offset];
+    const green = pixels[offset + 1];
+    const blue = pixels[offset + 2];
+    return blue - red > 8 || (blue - red > 4 && green - red > 4);
+  };
+
+  const scanStart = Math.floor(height * 0.72);
+  const rowCoverage = new Float32Array(height);
+  for (let y = scanStart; y < Math.floor(height * 0.97); y += 1) {
+    let cardPixels = 0;
+    for (let x = 0; x < width; x += 1) if (isCardBlue((y * width + x) * 4)) cardPixels += 1;
+    rowCoverage[y] = cardPixels / width;
+  }
+
+  let bandTop = -1;
+  for (let y = scanStart; y < Math.floor(height * 0.94); y += 1) {
+    const sustainedCoverage = rowCoverage.slice(y, y + 8).reduce((sum, value) => sum + value, 0) / 8;
+    if (rowCoverage[y] > 0.45 && sustainedCoverage > 0.42) {
+      bandTop = y;
+      break;
+    }
+  }
+  if (bandTop < 0) return null;
+
+  // Some PAN templates have a blue page border above the cards. Skip that border
+  // when it is substantially wider than the actual card band.
+  const initialCoverage = rowCoverage[bandTop];
+  const hasWideTopGuide = initialCoverage > 0.84 || bandTop < height * 0.75;
+  if (initialCoverage > 0.84) {
+    for (let y = bandTop + 8; y < Math.min(height, bandTop + 90); y += 1) {
+      if (rowCoverage[y] < initialCoverage - 0.15) {
+        bandTop = y;
+        break;
+      }
+    }
+  }
+
+  let bandBottom = Math.floor(height * 0.97);
+  for (let y = bandTop + 24; y < Math.floor(height * 0.99) - 8; y += 1) {
+    const sustainedCoverage = rowCoverage.slice(y, y + 8).reduce((sum, value) => sum + value, 0) / 8;
+    if (sustainedCoverage < 0.2) {
+      bandBottom = y;
+      break;
+    }
+  }
+
+  const separatorTrim = hasWideTopGuide ? 24 : 0;
+  const top = Math.min(height - 1, Math.max(0, bandTop - 2 + separatorTrim));
+  const bottom = Math.min(height, Math.max(top + 1, bandBottom + 2 - separatorTrim));
+  const columnCoverage = new Float32Array(width);
+  for (let x = 0; x < width; x += 1) {
+    let cardPixels = 0;
+    for (let y = top; y < bottom; y += 1) if (isCardArea((y * width + x) * 4)) cardPixels += 1;
+    columnCoverage[x] = cardPixels / (bottom - top);
+  }
+
+  const minimumPanelWidth = width * 0.15;
+  const spans: Array<{ start: number; end: number }> = [];
+  let spanStart = -1;
+  for (let x = 0; x <= width; x += 1) {
+    const inside = x < width && columnCoverage[x] > 0.2;
+    if (inside && spanStart < 0) spanStart = x;
+    if ((!inside || x === width) && spanStart >= 0) {
+      const end = x - 1;
+      if (end - spanStart + 1 >= minimumPanelWidth) spans.push({ start: spanStart, end });
+      spanStart = -1;
+    }
+  }
+
+  let panels = spans.sort((left, right) => right.end - right.start - (left.end - left.start)).slice(0, 2).sort((left, right) => left.start - right.start);
+  if (panels.length === 1) {
+    const whole = panels[0];
+    let split = whole.start + Math.floor((whole.end - whole.start) / 2);
+    for (let x = Math.floor(width * 0.35); x <= Math.floor(width * 0.65); x += 1) {
+      if (columnCoverage[x] < columnCoverage[split]) split = x;
+    }
+    panels = [{ start: whole.start, end: split - 1 }, { start: split + 1, end: whole.end }];
+  }
+  if (panels.length !== 2) return null;
+
+  return panels.map((panel) => {
+    const x = Math.max(0, panel.start - 2);
+    return {
+      x,
+      y: top,
+      width: Math.min(width - x, panel.end - panel.start + 5),
+      height: bottom - top,
+    };
+  });
+};
+
+const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[]> => {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
   const pdfDocument = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
@@ -72,6 +196,10 @@ const renderPdfPages = async (file: File): Promise<CardPage[]> => {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Could not prepare the PDF preview.");
     await page.render({ canvasContext: context, viewport }).promise;
+    if (cardKind === "pan" && pdfDocument.numPages === 1) {
+      const panRects = detectPanCardRects(canvas);
+      if (panRects) return panRects.map((rect, index) => ({ pageNumber: index + 1, src: cropCanvasToDataUrl(canvas, rect) }));
+    }
     pages.push({ pageNumber, src: canvas.toDataURL("image/png") });
   }
 
@@ -153,7 +281,7 @@ const CardPrintStudio = () => {
 
     setIsProcessing(true);
     try {
-      const renderedPages = await renderPdfPages(file);
+      const renderedPages = await renderPdfPages(file, cardKind);
       if (renderedPages.length === 0) throw new Error("This PDF does not contain a readable page.");
       setCardFile(file);
       setPages(renderedPages);
@@ -161,7 +289,7 @@ const CardPrintStudio = () => {
       if (renderedPages.length === 1) {
         toast({ title: "Front page detected", description: "This one-page PDF is ready. Add a second page to include the back side." });
       } else if (renderedPages.length > 1) {
-        toast({ title: "Front and back detected", description: "Page 1 is Front and Page 2 is Back." });
+        toast({ title: "Front and back detected", description: cardKind === "pan" && renderedPages.length === 2 ? "The printable PAN pair was extracted automatically from the A4 sheet." : "Page 1 is Front and Page 2 is Back." });
       }
     } catch (error) {
       toast({ title: "PDF preview failed", description: error instanceof Error ? error.message : "Could not read this PDF.", variant: "destructive" });
@@ -253,7 +381,7 @@ const CardPrintStudio = () => {
 
               <div className="mb-7 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {cardTemplates.map((template) => (
-                  <button key={template.id} type="button" onClick={() => setCardKind(template.id)} className={`group rounded-2xl border p-3 text-left transition-all ${cardKind === template.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-card/40 hover:border-primary/35 hover:bg-card"}`} aria-pressed={cardKind === template.id}>
+                  <button key={template.id} type="button" disabled={Boolean(cardFile) || isProcessing} onClick={() => setCardKind(template.id)} className={`group rounded-2xl border p-3 text-left transition-all ${cardKind === template.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-card/40 hover:border-primary/35 hover:bg-card"}`} aria-pressed={cardKind === template.id}>
                     <div className="mb-3 w-full overflow-hidden rounded-xl border border-border/70 bg-white/90 p-1 shadow-sm transition-transform group-hover:scale-[1.02]" aria-hidden="true">
                       <CardTypeIcon kind={template.id} className="block h-auto w-full" />
                     </div>
