@@ -27,6 +27,7 @@ const CARD_HEIGHT = 638;
 
 type CardKind = "pan" | "aadhaar" | "ration" | "ayushman" | "custom";
 type Face = "front" | "back";
+type FitMode = "contain" | "fill";
 
 interface CardPage {
   pageNumber: number;
@@ -38,12 +39,13 @@ const cardTemplates: Array<{
   label: string;
   description: string;
   tone: "gold" | "blue" | "mint" | "violet" | "slate";
+  fitMode: FitMode;
 }> = [
-  { id: "pan", label: "PAN Card", description: "Income Tax / PAN card", tone: "gold" },
-  { id: "aadhaar", label: "Aadhaar", description: "UIDAI identity card", tone: "blue" },
-  { id: "ration", label: "Ration Card", description: "Family ration card", tone: "mint" },
-  { id: "ayushman", label: "Ayushman Card", description: "Health benefit card", tone: "violet" },
-  { id: "custom", label: "Custom ID", description: "Any PVC identity card", tone: "slate" },
+  { id: "pan", label: "PAN Card", description: "Income Tax / PAN card", tone: "gold", fitMode: "contain" },
+  { id: "aadhaar", label: "Aadhaar", description: "UIDAI identity card", tone: "blue", fitMode: "contain" },
+  { id: "ration", label: "Ration Card", description: "Family ration card", tone: "mint", fitMode: "contain" },
+  { id: "ayushman", label: "Ayushman Card", description: "Health benefit card", tone: "violet", fitMode: "fill" },
+  { id: "custom", label: "Custom ID", description: "Any PVC identity card", tone: "slate", fitMode: "contain" },
 ];
 
 const cardNames: Record<CardKind, string> = {
@@ -76,7 +78,7 @@ const renderPdfPages = async (file: File): Promise<CardPage[]> => {
   return pages;
 };
 
-const canvasFromImage = (src: string): Promise<HTMLCanvasElement> =>
+const canvasFromImage = (src: string, fitMode: FitMode = "contain"): Promise<HTMLCanvasElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -87,10 +89,16 @@ const canvasFromImage = (src: string): Promise<HTMLCanvasElement> =>
       if (!context) return reject(new Error("Could not prepare the export canvas."));
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
-      const scale = Math.min(CARD_WIDTH / image.width, CARD_HEIGHT / image.height);
-      const width = image.width * scale;
-      const height = image.height * scale;
-      context.drawImage(image, (CARD_WIDTH - width) / 2, (CARD_HEIGHT - height) / 2, width, height);
+      if (fitMode === "fill") {
+        // Ayushman PDFs commonly use a wider source page than an ID-1 PVC card.
+        // Scale the complete artwork edge-to-edge instead of cropping identity data.
+        context.drawImage(image, 0, 0, CARD_WIDTH, CARD_HEIGHT);
+      } else {
+        const scale = Math.min(CARD_WIDTH / image.width, CARD_HEIGHT / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (CARD_WIDTH - width) / 2, (CARD_HEIGHT - height) / 2, width, height);
+      }
       resolve(canvas);
     };
     image.onerror = () => reject(new Error("The selected PDF page could not be rendered."));
@@ -186,7 +194,7 @@ const CardPrintStudio = () => {
     if (!page) return;
     setIsProcessing(true);
     try {
-      const canvas = await canvasFromImage(page.src);
+      const canvas = await canvasFromImage(page.src, selectedTemplate.fitMode);
       canvas.toBlob((blob) => {
         if (blob) downloadBlob(blob, `${cardNames[cardKind]}-${face}.png`);
         setIsProcessing(false);
@@ -205,7 +213,7 @@ const CardPrintStudio = () => {
       const pageWidth = 242.65;
       const pageHeight = 153.07;
       for (const cardPage of pages) {
-        const canvas = await canvasFromImage(cardPage.src);
+        const canvas = await canvasFromImage(cardPage.src, selectedTemplate.fitMode);
         const png = await pdf.embedPng(canvas.toDataURL("image/png"));
         const page = pdf.addPage([pageWidth, pageHeight]);
         page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: rgb(1, 1, 1) });
@@ -246,8 +254,10 @@ const CardPrintStudio = () => {
               <div className="mb-7 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {cardTemplates.map((template) => (
                   <button key={template.id} type="button" onClick={() => setCardKind(template.id)} className={`group rounded-2xl border p-3 text-left transition-all ${cardKind === template.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-card/40 hover:border-primary/35 hover:bg-card"}`} aria-pressed={cardKind === template.id}>
-                    <PremiumIconFrame tone={template.tone} size="sm" aria-hidden="true"><CardTypeIcon kind={template.id} className="h-7 w-10" /></PremiumIconFrame>
-                    <span className="mt-2 block text-xs font-bold leading-tight">{template.label}</span>
+                    <div className="mb-3 w-full overflow-hidden rounded-xl border border-border/70 bg-white/90 p-1 shadow-sm transition-transform group-hover:scale-[1.02]" aria-hidden="true">
+                      <CardTypeIcon kind={template.id} className="block h-auto w-full" />
+                    </div>
+                    <span className="block text-sm font-bold leading-tight">{template.label}</span>
                     <span className="mt-1 hidden text-[10px] leading-tight text-muted-foreground sm:block">{template.description}</span>
                     {cardKind === template.id && <Check className="mt-2 h-3.5 w-3.5 text-primary" />}
                   </button>
@@ -261,7 +271,7 @@ const CardPrintStudio = () => {
                     <Button type="button" variant="outline" size="sm" onClick={clearPdf}><X className="mr-1.5 h-4 w-4" /> Replace PDF</Button>
                   </div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    {pages.map((page, index) => <div key={page.pageNumber} className="rounded-2xl border border-border bg-background/60 p-3"><div className="flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>Page {page.pageNumber}</span><span>{index === 0 ? "Front" : "Back"}</span></div><img src={page.src} alt={`Card page ${page.pageNumber}`} className="mt-2 aspect-[1011/638] w-full rounded-xl bg-muted/30 object-contain" /></div>)}
+                    {pages.map((page, index) => <div key={page.pageNumber} className="rounded-2xl border border-border bg-background/60 p-3"><div className="flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>Page {page.pageNumber}</span><span>{index === 0 ? "Front" : "Back"}</span></div><img src={page.src} alt={`Card page ${page.pageNumber}`} className={`mt-2 aspect-[1011/638] w-full rounded-xl bg-muted/30 ${selectedTemplate.fitMode === "fill" ? "object-fill" : "object-contain"}`} /></div>)}
                     {pages.length === 1 && <div className="flex min-h-32 items-center justify-center rounded-2xl border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">No second page found.<br />The exported PDF will contain the front only.</div>}
                   </div>
                 </div>
@@ -272,12 +282,12 @@ const CardPrintStudio = () => {
                 </motion.label>
               )}
 
-              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/50 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Page 1 → Front · Page 2 → Back</span><span>Standard PVC ratio: 85.60 × 53.98 mm</span></div>
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/50 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Page 1 → Front · Page 2 → Back</span><span>{selectedTemplate.fitMode === "fill" ? "Full artwork preserved · fitted edge-to-edge" : "Standard PVC ratio: 85.60 × 53.98 mm"}</span></div>
             </section>
 
             <aside className="glass-card min-w-0 p-5 sm:p-7" aria-labelledby="preview-title">
               <div className="mb-6 flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Step 2</p><h2 id="preview-title" className="mt-1 text-2xl font-bold">PVC preview</h2></div><button type="button" onClick={() => setActiveFace(activeFace === "front" ? "back" : "front")} className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:bg-muted" aria-label="Flip preview side"><FlipHorizontal2 className="h-4 w-4" /></button></div>
-              <div className="rounded-[1.6rem] border border-border/70 bg-gradient-to-br from-muted/70 via-background to-primary/[0.06] p-3 shadow-inner sm:p-5"><div className="relative aspect-[1011/638] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_50px_rgba(25,35,75,0.16)]">{activePage ? <img src={activePage.src} alt={`${selectedTemplate.label} ${activeFace} preview`} className="h-full w-full object-contain" /> : <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-white to-violet-500/10 p-6 text-center"><PremiumIconFrame tone={selectedTemplate.tone} size="lg" aria-hidden="true"><CardTypeIcon kind={selectedTemplate.id} className="h-12 w-[4.5rem]" /></PremiumIconFrame><p className="mt-4 text-sm font-bold">{selectedTemplate.label}</p><p className="mt-1 text-xs text-muted-foreground">Upload one card PDF to preview</p></div>}<span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">{activeFace}</span></div></div>
+              <div className="rounded-[1.6rem] border border-border/70 bg-gradient-to-br from-muted/70 via-background to-primary/[0.06] p-3 shadow-inner sm:p-5"><div className="relative aspect-[1011/638] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_50px_rgba(25,35,75,0.16)]">{activePage ? <img src={activePage.src} alt={`${selectedTemplate.label} ${activeFace} preview`} className={`h-full w-full ${selectedTemplate.fitMode === "fill" ? "object-fill" : "object-contain"}`} /> : <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-white to-violet-500/10 p-6 text-center"><PremiumIconFrame tone={selectedTemplate.tone} size="lg" aria-hidden="true"><CardTypeIcon kind={selectedTemplate.id} className="h-12 w-[4.5rem]" /></PremiumIconFrame><p className="mt-4 text-sm font-bold">{selectedTemplate.label}</p><p className="mt-1 text-xs text-muted-foreground">Upload one card PDF to preview</p></div>}<span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">{activeFace}</span></div></div>
               <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setActiveFace("front")} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeFace === "front" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Front page</button><button type="button" onClick={() => setActiveFace("back")} disabled={!pages[1]} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${activeFace === "back" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Back page</button></div>
               <div className="mt-6 space-y-2"><Button type="button" onClick={exportPdf} disabled={isProcessing || !hasPdf} className="h-11 w-full rounded-xl bg-primary font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90"><Printer className="mr-2 h-4 w-4" /> {isProcessing ? "Preparing print PDF…" : "Export print-ready PDF"}</Button><div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={() => void exportFacePng("front")} disabled={isProcessing || !pages[0]} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Front PNG</Button><Button type="button" variant="outline" onClick={() => void exportFacePng("back")} disabled={isProcessing || !pages[1]} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Back PNG</Button></div></div>
             </aside>
