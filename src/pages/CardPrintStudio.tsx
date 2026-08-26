@@ -48,7 +48,7 @@ const cardTemplates: Array<{
   tone: "gold" | "blue" | "mint" | "violet" | "slate";
   fitMode: FitMode;
 }> = [
-  { id: "pan", label: "PAN Card", description: "Income Tax / PAN card", tone: "gold", fitMode: "contain" },
+  { id: "pan", label: "PAN Card", description: "Income Tax / PAN card", tone: "gold", fitMode: "fill" },
   { id: "aadhaar", label: "Aadhaar", description: "UIDAI identity card", tone: "blue", fitMode: "contain" },
   { id: "ration", label: "Ration Card", description: "Family ration card", tone: "mint", fitMode: "contain" },
   { id: "ayushman", label: "Ayushman Card", description: "Health benefit card", tone: "violet", fitMode: "fill" },
@@ -165,19 +165,28 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
     for (let x = Math.floor(width * 0.35); x <= Math.floor(width * 0.65); x += 1) {
       if (columnCoverage[x] < columnCoverage[split]) split = x;
     }
-    panels = [{ start: whole.start, end: split - 1 }, { start: split + 1, end: whole.end }];
+
+    // The wide PAN template has a white gutter between the two cards. Move the
+    // split to the first solid card column after that gutter instead of keeping
+    // a sliver of the opposite card/white paper in the Back crop.
+    let leftEnd = split;
+    while (leftEnd > whole.start + 1 && columnCoverage[leftEnd] < 0.65) leftEnd -= 1;
+    let rightStart = split + 1;
+    while (rightStart < whole.end - 1 && columnCoverage[rightStart] < 0.65) rightStart += 1;
+    // This wide template keeps roughly 4% of the neighboring card’s blue
+    // gutter after the midpoint. Move the Back crop past that gutter so no
+    // white paper or Front-card sliver remains on its left edge.
+    if (hasWideTopGuide) rightStart = Math.min(whole.end - 1, rightStart + Math.round(width * 0.04));
+    panels = [{ start: whole.start, end: leftEnd }, { start: rightStart, end: whole.end }];
   }
   if (panels.length !== 2) return null;
 
-  return panels.map((panel) => {
-    const x = Math.max(0, panel.start - 2);
-    return {
-      x,
-      y: top,
-      width: Math.min(width - x, panel.end - panel.start + 5),
-      height: bottom - top,
-    };
-  });
+  return panels.map((panel) => ({
+    x: Math.max(0, panel.start),
+    y: top,
+    width: Math.min(width - panel.start, panel.end - panel.start + 1),
+    height: bottom - top,
+  }));
 };
 
 const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[]> => {
