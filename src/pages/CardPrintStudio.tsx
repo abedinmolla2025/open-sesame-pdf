@@ -4,10 +4,8 @@ import {
   Check,
   CreditCard,
   Download,
-  FileImage,
   FileText,
   FlipHorizontal2,
-  ImagePlus,
   LockKeyhole,
   Printer,
   RefreshCw,
@@ -20,15 +18,20 @@ import { Layout } from "@/components/Layout";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { PremiumIconFrame } from "@/components/PremiumIcon";
+import { CardTypeIcon } from "@/components/CardTypeIcon";
 import { usePageHead } from "@/hooks/usePageHead";
 import { useToast } from "@/hooks/use-toast";
 
 const CARD_WIDTH = 1011;
 const CARD_HEIGHT = 638;
-const CARD_RATIO = `${CARD_WIDTH}/${CARD_HEIGHT}`;
 
 type CardKind = "pan" | "aadhaar" | "ration" | "ayushman" | "custom";
 type Face = "front" | "back";
+
+interface CardPage {
+  pageNumber: number;
+  src: string;
+}
 
 const cardTemplates: Array<{
   id: CardKind;
@@ -51,36 +54,29 @@ const cardNames: Record<CardKind, string> = {
   custom: "custom-id-card",
 };
 
-interface FaceState {
-  file: File | null;
-  src: string | null;
-}
-
-const initialFace: FaceState = { file: null, src: null };
-
-const readPdfFirstPage = async (file: File): Promise<string> => {
+const renderPdfPages = async (file: File): Promise<CardPage[]> => {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-  const document = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-  const page = await document.getPage(1);
-  const viewport = page.getViewport({ scale: 2 });
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not prepare the PDF preview.");
-  await page.render({ canvasContext: context, viewport }).promise;
-  return canvas.toDataURL("image/png");
-};
+  const pdfDocument = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages: CardPage[] = [];
+  const pageCount = Math.min(pdfDocument.numPages, 2);
 
-const readFace = async (file: File): Promise<string> => {
-  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-    return readPdfFirstPage(file);
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    const page = await pdfDocument.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not prepare the PDF preview.");
+    await page.render({ canvasContext: context, viewport }).promise;
+    pages.push({ pageNumber, src: canvas.toDataURL("image/png") });
   }
-  return URL.createObjectURL(file);
+
+  return pages;
 };
 
-const canvasFromImage = (src: string, fit: "contain" | "cover" = "contain"): Promise<HTMLCanvasElement> =>
+const canvasFromImage = (src: string): Promise<HTMLCanvasElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -91,15 +87,13 @@ const canvasFromImage = (src: string, fit: "contain" | "cover" = "contain"): Pro
       if (!context) return reject(new Error("Could not prepare the export canvas."));
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
-      const scale = fit === "cover"
-        ? Math.max(CARD_WIDTH / image.width, CARD_HEIGHT / image.height)
-        : Math.min(CARD_WIDTH / image.width, CARD_HEIGHT / image.height);
+      const scale = Math.min(CARD_WIDTH / image.width, CARD_HEIGHT / image.height);
       const width = image.width * scale;
       const height = image.height * scale;
       context.drawImage(image, (CARD_WIDTH - width) / 2, (CARD_HEIGHT - height) / 2, width, height);
       resolve(canvas);
     };
-    image.onerror = () => reject(new Error("The selected file could not be rendered."));
+    image.onerror = () => reject(new Error("The selected PDF page could not be rendered."));
     image.src = src;
   });
 
@@ -118,103 +112,105 @@ const CardPrintStudio = () => {
   const { toast } = useToast();
   const [cardKind, setCardKind] = useState<CardKind>("pan");
   const [activeFace, setActiveFace] = useState<Face>("front");
-  const [front, setFront] = useState<FaceState>(initialFace);
-  const [back, setBack] = useState<FaceState>(initialFace);
-  const [isDragging, setIsDragging] = useState<Face | null>(null);
+  const [cardFile, setCardFile] = useState<File | null>(null);
+  const [pages, setPages] = useState<CardPage[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const frontInput = useRef<HTMLInputElement>(null);
-  const backInput = useRef<HTMLInputElement>(null);
-  const objectUrls = useRef<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   usePageHead({
     title: "PVC Card Maker — PAN, Aadhaar & ID Card Print Studio",
-    description: "Create print-ready PVC card layouts from PAN, Aadhaar, ration, Ayushman and custom ID card images in your browser.",
+    description: "Upload one card PDF and automatically prepare its front and back pages for PVC printing.",
     canonical: "https://free-my-pdf.lovable.app/card-print-studio",
     type: "website",
   });
-
-  useEffect(() => () => {
-    objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
-  }, []);
 
   const selectedTemplate = useMemo(
     () => cardTemplates.find((template) => template.id === cardKind) ?? cardTemplates[0],
     [cardKind]
   );
 
-  const setFaceFile = useCallback(async (face: Face, file: File) => {
-    if (!file.type.startsWith("image/") && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      toast({ title: "Unsupported file", description: "Choose a JPG, PNG, WebP image or a PDF file.", variant: "destructive" });
+  const activePage = activeFace === "front" ? pages[0] : pages[1];
+  const hasPdf = Boolean(cardFile && pages.length > 0);
+
+  const acceptPdf = useCallback(async (file: File) => {
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast({ title: "PDF required", description: "Upload one PDF containing your card pages.", variant: "destructive" });
       return;
     }
     if (file.size > 25 * 1024 * 1024) {
-      toast({ title: "File is too large", description: "Please choose a file up to 25 MB.", variant: "destructive" });
+      toast({ title: "File is too large", description: "Please choose a PDF up to 25 MB.", variant: "destructive" });
       return;
     }
+
+    setIsProcessing(true);
     try {
-      const src = await readFace(file);
-      if (src.startsWith("blob:")) objectUrls.current.push(src);
-      const next = { file, src };
-      if (face === "front") setFront(next);
-      else setBack(next);
-      setActiveFace(face);
+      const renderedPages = await renderPdfPages(file);
+      if (renderedPages.length === 0) throw new Error("This PDF does not contain a readable page.");
+      setCardFile(file);
+      setPages(renderedPages);
+      setActiveFace("front");
+      if (renderedPages.length === 1) {
+        toast({ title: "Front page detected", description: "This one-page PDF is ready. Add a second page to include the back side." });
+      } else if (renderedPages.length > 1) {
+        toast({ title: "Front and back detected", description: "Page 1 is Front and Page 2 is Back." });
+      }
     } catch (error) {
-      toast({ title: "Preview failed", description: error instanceof Error ? error.message : "Could not render this file.", variant: "destructive" });
+      toast({ title: "PDF preview failed", description: error instanceof Error ? error.message : "Could not read this PDF.", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
     }
   }, [toast]);
 
-  const clearFace = (face: Face) => {
-    if (face === "front") setFront(initialFace);
-    else setBack(initialFace);
-  };
-
-  const handleFileInput = (face: Face, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) void setFaceFile(face, file);
+    if (file) void acceptPdf(file);
     event.target.value = "";
   };
 
-  const handleDrop = (face: Face, event: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
-    setIsDragging(null);
+    setIsDragging(false);
     const file = event.dataTransfer.files?.[0];
-    if (file) void setFaceFile(face, file);
+    if (file) void acceptPdf(file);
+  };
+
+  const clearPdf = () => {
+    setCardFile(null);
+    setPages([]);
+    setActiveFace("front");
   };
 
   const exportFacePng = async (face: Face) => {
-    const state = face === "front" ? front : back;
-    if (!state.src) return;
+    const page = face === "front" ? pages[0] : pages[1];
+    if (!page) return;
     setIsProcessing(true);
     try {
-      const canvas = await canvasFromImage(state.src);
+      const canvas = await canvasFromImage(page.src);
       canvas.toBlob((blob) => {
         if (blob) downloadBlob(blob, `${cardNames[cardKind]}-${face}.png`);
         setIsProcessing(false);
       }, "image/png");
     } catch (error) {
       setIsProcessing(false);
-      toast({ title: "Export failed", description: error instanceof Error ? error.message : "Could not export the card.", variant: "destructive" });
+      toast({ title: "PNG export failed", description: error instanceof Error ? error.message : "Could not export this page.", variant: "destructive" });
     }
   };
 
   const exportPdf = async () => {
-    if (!front.src && !back.src) {
-      toast({ title: "Upload at least one side", description: "Add a front or back card file before exporting.", variant: "destructive" });
-      return;
-    }
+    if (!hasPdf) return;
     setIsProcessing(true);
     try {
       const pdf = await PDFDocument.create();
       const pageWidth = 242.65;
       const pageHeight = 153.07;
-      for (const [face, src] of [["front", front.src], ["back", back.src]] as const) {
-        if (!src) continue;
-        const canvas = await canvasFromImage(src);
+      for (const cardPage of pages) {
+        const canvas = await canvasFromImage(cardPage.src);
         const png = await pdf.embedPng(canvas.toDataURL("image/png"));
         const page = pdf.addPage([pageWidth, pageHeight]);
         page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: rgb(1, 1, 1) });
         page.drawImage(png, { x: 0, y: 0, width: pageWidth, height: pageHeight });
-        page.drawText(`${selectedTemplate.label} • ${face === "front" ? "Front" : "Back"}`, { x: 8, y: 4, size: 4, color: rgb(0.45, 0.45, 0.45), opacity: 0.7 });
+        page.drawText(`${selectedTemplate.label} • ${cardPage.pageNumber === 1 ? "Front" : "Back"}`, { x: 8, y: 4, size: 4, color: rgb(0.45, 0.45, 0.45), opacity: 0.7 });
       }
       const bytes = await pdf.save();
       downloadBlob(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), `${cardNames[cardKind]}-pvc-print.pdf`);
@@ -223,49 +219,6 @@ const CardPrintStudio = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const renderUpload = (face: Face, state: FaceState, inputRef: React.RefObject<HTMLInputElement | null>) => {
-    const isActive = isDragging === face;
-    return state.src ? (
-      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card p-3 shadow-sm">
-        <img src={state.src} alt={`${face} card preview`} className="aspect-[1011/638] w-full rounded-xl object-contain bg-muted/30" />
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{state.file?.name}</p>
-            <p className="text-xs text-muted-foreground">Ready for PVC layout</p>
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => clearFace(face)} aria-label={`Remove ${face} file`}>
-            <X className="mr-1.5 h-4 w-4" /> Remove
-          </Button>
-        </div>
-      </div>
-    ) : (
-      <motion.label
-        whileHover={{ y: -2 }}
-        onClick={() => setActiveFace(face)}
-        onDragEnter={(event) => { event.preventDefault(); setIsDragging(face); }}
-        onDragOver={(event) => event.preventDefault()}
-        onDragLeave={() => setIsDragging(null)}
-        onDrop={(event) => handleDrop(face, event)}
-        className={`premium-dropzone relative block cursor-pointer p-6 sm:p-8 ${isActive ? "scale-[1.015]" : ""}`}
-        data-dragging={isActive}
-      >
-        <input ref={inputRef} type="file" accept="image/*,.pdf,application/pdf" className="sr-only" onChange={(event) => handleFileInput(face, event)} />
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <PremiumIconFrame tone={face === "front" ? "blue" : "violet"} size="lg" aria-hidden="true">
-            {face === "front" ? <ImagePlus /> : <FlipHorizontal2 />}
-          </PremiumIconFrame>
-          <p className="mt-4 text-base font-semibold text-foreground">Upload {face} side</p>
-          <p className="mt-1 text-sm text-muted-foreground">Drag & drop or click to browse</p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-muted-foreground">
-            <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">JPG / PNG / WebP</span>
-            <span className="rounded-full border border-border bg-background/70 px-2.5 py-1">PDF supported</span>
-            <span className="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-primary">Private in browser</span>
-          </div>
-        </div>
-      </motion.label>
-    );
   };
 
   return (
@@ -278,27 +231,22 @@ const CardPrintStudio = () => {
         <div className="container relative z-10 mx-auto px-4 py-10 md:py-16">
           <Breadcrumbs items={[{ name: "Home", to: "/" }, { name: "PVC Card Maker" }]} className="mb-7" />
           <motion.header initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto mb-10 max-w-4xl text-center">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
-              <CreditCard className="h-4 w-4" /> PVC Card Print Studio
-            </div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"><CreditCard className="h-4 w-4" /> PVC Card Print Studio</div>
             <h1 className="font-display text-4xl font-bold tracking-tight md:text-6xl">Make your <span className="gradient-text">PVC card</span> print-ready</h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">Upload the front and back of your card, preview the physical PVC ratio, and export a clean print-ready PDF without sending your documents anywhere.</p>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">Upload one card PDF. We automatically use page 1 as the front and page 2 as the back, then prepare a standard PVC print layout.</p>
           </motion.header>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
             <section className="glass-card min-w-0 p-5 sm:p-7" aria-labelledby="card-upload-title">
               <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Step 1</p>
-                  <h2 id="card-upload-title" className="mt-1 text-2xl font-bold">Choose card type & upload sides</h2>
-                </div>
+                <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Step 1</p><h2 id="card-upload-title" className="mt-1 text-2xl font-bold">Choose card type & upload one PDF</h2></div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-secondary/80 px-3 py-2 text-xs font-medium text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5 text-primary" /> Files stay on this device</div>
               </div>
 
               <div className="mb-7 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {cardTemplates.map((template) => (
                   <button key={template.id} type="button" onClick={() => setCardKind(template.id)} className={`group rounded-2xl border p-3 text-left transition-all ${cardKind === template.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-card/40 hover:border-primary/35 hover:bg-card"}`} aria-pressed={cardKind === template.id}>
-                    <PremiumIconFrame tone={template.tone} size="sm" aria-hidden="true"><CreditCard /></PremiumIconFrame>
+                    <PremiumIconFrame tone={template.tone} size="sm" aria-hidden="true"><CardTypeIcon kind={template.id} className="h-7 w-10" /></PremiumIconFrame>
                     <span className="mt-2 block text-xs font-bold leading-tight">{template.label}</span>
                     <span className="mt-1 hidden text-[10px] leading-tight text-muted-foreground sm:block">{template.description}</span>
                     {cardKind === template.id && <Check className="mt-2 h-3.5 w-3.5 text-primary" />}
@@ -306,61 +254,36 @@ const CardPrintStudio = () => {
                 ))}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {renderUpload("front", front, frontInput)}
-                {renderUpload("back", back, backInput)}
-              </div>
+              {cardFile ? (
+                <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-card via-card/80 to-primary/[0.05] p-5 shadow-sm sm:p-7">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-4"><PremiumIconFrame tone="gold" size="md" aria-hidden="true"><FileText /></PremiumIconFrame><div className="min-w-0"><p className="truncate font-semibold">{cardFile.name}</p><p className="text-sm text-muted-foreground">{pages.length === 2 ? "2 pages detected — Front + Back ready" : "1 page detected — Front ready"}</p></div></div>
+                    <Button type="button" variant="outline" size="sm" onClick={clearPdf}><X className="mr-1.5 h-4 w-4" /> Replace PDF</Button>
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {pages.map((page, index) => <div key={page.pageNumber} className="rounded-2xl border border-border bg-background/60 p-3"><div className="flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>Page {page.pageNumber}</span><span>{index === 0 ? "Front" : "Back"}</span></div><img src={page.src} alt={`Card page ${page.pageNumber}`} className="mt-2 aspect-[1011/638] w-full rounded-xl bg-muted/30 object-contain" /></div>)}
+                    {pages.length === 1 && <div className="flex min-h-32 items-center justify-center rounded-2xl border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">No second page found.<br />The exported PDF will contain the front only.</div>}
+                  </div>
+                </div>
+              ) : (
+                <motion.label whileHover={{ y: -2 }} onDragEnter={(event) => { event.preventDefault(); setIsDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setIsDragging(false)} onDrop={handleDrop} className={`premium-dropzone relative block cursor-pointer p-8 sm:p-12 ${isDragging ? "scale-[1.015]" : ""}`} data-dragging={isDragging}>
+                  <input ref={inputRef} type="file" accept=".pdf,application/pdf" className="sr-only" onChange={handleInput} />
+                  <div className="relative z-10 flex flex-col items-center text-center"><PremiumIconFrame tone="blue" size="lg" aria-hidden="true"><Upload /></PremiumIconFrame><p className="mt-4 text-lg font-semibold">Drag & drop your card PDF here</p><p className="mt-1 text-sm text-muted-foreground">or click to browse — one PDF automatically becomes Front + Back</p><div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-muted-foreground"><span className="rounded-full border border-border bg-background/70 px-2.5 py-1">PDF only</span><span className="rounded-full border border-border bg-background/70 px-2.5 py-1">Up to 25 MB</span><span className="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-primary">Private in browser</span></div></div>
+                </motion.label>
+              )}
 
-              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/50 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Standard PVC ratio: 85.60 × 53.98 mm</span>
-                <span>Up to 25 MB per side</span>
-              </div>
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/50 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Page 1 → Front · Page 2 → Back</span><span>Standard PVC ratio: 85.60 × 53.98 mm</span></div>
             </section>
 
             <aside className="glass-card min-w-0 p-5 sm:p-7" aria-labelledby="preview-title">
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Step 2</p>
-                  <h2 id="preview-title" className="mt-1 text-2xl font-bold">PVC preview</h2>
-                </div>
-                <button type="button" onClick={() => setActiveFace(activeFace === "front" ? "back" : "front")} className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:bg-muted" aria-label="Flip preview side"><FlipHorizontal2 className="h-4 w-4" /></button>
-              </div>
-
-              <div className="rounded-[1.6rem] border border-border/70 bg-gradient-to-br from-muted/70 via-background to-primary/[0.06] p-3 shadow-inner sm:p-5">
-                <div className="relative aspect-[1011/638] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_50px_rgba(25,35,75,0.16)]">
-                  {((activeFace === "front" ? front : back).src) ? (
-                    <img src={(activeFace === "front" ? front : back).src ?? undefined} alt={`${selectedTemplate.label} ${activeFace} preview`} className="h-full w-full object-contain" />
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-white to-violet-500/10 p-6 text-center">
-                      <PremiumIconFrame tone={selectedTemplate.tone} size="lg" aria-hidden="true"><CreditCard /></PremiumIconFrame>
-                      <p className="mt-4 text-sm font-bold text-foreground">{selectedTemplate.label}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Upload a {activeFace} side to preview</p>
-                    </div>
-                  )}
-                  <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">{activeFace}</span>
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setActiveFace("front")} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeFace === "front" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Front side</button>
-                <button type="button" onClick={() => setActiveFace("back")} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeFace === "back" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Back side</button>
-              </div>
-
-              <div className="mt-6 space-y-2">
-                <Button type="button" onClick={exportPdf} disabled={isProcessing || (!front.src && !back.src)} className="h-11 w-full rounded-xl bg-primary font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90"><Printer className="mr-2 h-4 w-4" /> {isProcessing ? "Preparing print PDF…" : "Export print-ready PDF"}</Button>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button type="button" variant="outline" onClick={() => void exportFacePng("front")} disabled={isProcessing || !front.src} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Front PNG</Button>
-                  <Button type="button" variant="outline" onClick={() => void exportFacePng("back")} disabled={isProcessing || !back.src} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Back PNG</Button>
-                </div>
-              </div>
+              <div className="mb-6 flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Step 2</p><h2 id="preview-title" className="mt-1 text-2xl font-bold">PVC preview</h2></div><button type="button" onClick={() => setActiveFace(activeFace === "front" ? "back" : "front")} className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:bg-muted" aria-label="Flip preview side"><FlipHorizontal2 className="h-4 w-4" /></button></div>
+              <div className="rounded-[1.6rem] border border-border/70 bg-gradient-to-br from-muted/70 via-background to-primary/[0.06] p-3 shadow-inner sm:p-5"><div className="relative aspect-[1011/638] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_50px_rgba(25,35,75,0.16)]">{activePage ? <img src={activePage.src} alt={`${selectedTemplate.label} ${activeFace} preview`} className="h-full w-full object-contain" /> : <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-white to-violet-500/10 p-6 text-center"><PremiumIconFrame tone={selectedTemplate.tone} size="lg" aria-hidden="true"><CardTypeIcon kind={selectedTemplate.id} className="h-12 w-[4.5rem]" /></PremiumIconFrame><p className="mt-4 text-sm font-bold">{selectedTemplate.label}</p><p className="mt-1 text-xs text-muted-foreground">Upload one card PDF to preview</p></div>}<span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">{activeFace}</span></div></div>
+              <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setActiveFace("front")} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeFace === "front" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Front page</button><button type="button" onClick={() => setActiveFace("back")} disabled={!pages[1]} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${activeFace === "back" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Back page</button></div>
+              <div className="mt-6 space-y-2"><Button type="button" onClick={exportPdf} disabled={isProcessing || !hasPdf} className="h-11 w-full rounded-xl bg-primary font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90"><Printer className="mr-2 h-4 w-4" /> {isProcessing ? "Preparing print PDF…" : "Export print-ready PDF"}</Button><div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={() => void exportFacePng("front")} disabled={isProcessing || !pages[0]} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Front PNG</Button><Button type="button" variant="outline" onClick={() => void exportFacePng("back")} disabled={isProcessing || !pages[1]} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Back PNG</Button></div></div>
             </aside>
           </div>
 
-          <section className="mx-auto mt-8 grid max-w-5xl gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 bg-card/65 p-4"><FileText className="h-5 w-5 text-primary" /><p className="mt-3 text-sm font-bold">PDF or image input</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Use downloaded e-card PDFs or clear front/back images.</p></div>
-            <div className="rounded-2xl border border-border/70 bg-card/65 p-4"><Printer className="h-5 w-5 text-primary" /><p className="mt-3 text-sm font-bold">Physical PVC ratio</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Exports the standard bank-card proportion for printing.</p></div>
-            <div className="rounded-2xl border border-border/70 bg-card/65 p-4"><RefreshCw className="h-5 w-5 text-primary" /><p className="mt-3 text-sm font-bold">Front + back workflow</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Generate separate front/back PNGs or one print PDF.</p></div>
-          </section>
+          <section className="mx-auto mt-8 grid max-w-5xl gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-border/70 bg-card/65 p-4"><FileText className="h-5 w-5 text-primary" /><p className="mt-3 text-sm font-bold">One PDF input</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Upload the downloaded e-card PDF once; page mapping is automatic.</p></div><div className="rounded-2xl border border-border/70 bg-card/65 p-4"><Printer className="h-5 w-5 text-primary" /><p className="mt-3 text-sm font-bold">PVC ratio ready</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Exports the standard bank-card proportion for printing.</p></div><div className="rounded-2xl border border-border/70 bg-card/65 p-4"><RefreshCw className="h-5 w-5 text-primary" /><p className="mt-3 text-sm font-bold">Automatic mapping</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Page 1 becomes Front and page 2 becomes Back automatically.</p></div></section>
         </div>
       </div>
     </Layout>
