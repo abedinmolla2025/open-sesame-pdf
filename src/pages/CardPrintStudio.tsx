@@ -181,15 +181,21 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   }
   if (panels.length !== 2) return null;
 
-  // Keep the complete detected panel width. A source-level horizontal nudge
-  // changes the effective scale and makes the PAN artwork look over-zoomed;
-  // the tight panel bounds above already remove the outside paper/gutter.
-  return panels.map((panel) => ({
-    x: Math.max(0, panel.start),
-    y: top,
-    width: Math.max(1, Math.min(width - panel.start, panel.end - panel.start + 1)),
-    height: bottom - top,
-  }));
+  // Use opposite, edge-safe offsets for the two faces. Extending the Front
+  // crop only on its right moves the artwork a touch left while preserving its
+  // left border. Extending the Back crop only on its left moves the artwork a
+  // touch right while preserving its right border and QR/content area.
+  const faceAlignmentPad = 2;
+  return panels.map((panel, index) => {
+    const x = index === 0 ? panel.start : Math.max(0, panel.start - faceAlignmentPad);
+    const right = index === 0 ? Math.min(width - 1, panel.end + faceAlignmentPad) : panel.end;
+    return {
+      x,
+      y: top,
+      width: Math.max(1, right - x + 1),
+      height: bottom - top,
+    };
+  });
 };
 
 const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[]> => {
