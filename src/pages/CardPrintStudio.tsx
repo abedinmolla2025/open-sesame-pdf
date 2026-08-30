@@ -209,7 +209,7 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
       height: bottom - top,
       // The merged-wide Jiyarul layout needs opposite face alignment. Separate
       // panel layouts (including Signed PAN) remain unchanged.
-      horizontalOffset: hasSeparatePanPanels ? 0 : (isFront ? -6 : 6),
+      horizontalOffset: hasSeparatePanPanels ? 0 : (isFront ? -10 : 10),
     };
   });
 };
