@@ -251,28 +251,52 @@ const canvasFromImage = (src: string, fitMode: FitMode = "contain"): Promise<HTM
   new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
+      const artwork = document.createElement("canvas");
+      artwork.width = CARD_WIDTH;
+      artwork.height = CARD_HEIGHT;
+      const artworkContext = artwork.getContext("2d");
+      if (!artworkContext) return reject(new Error("Could not prepare the export artwork."));
+      artworkContext.fillStyle = "#ffffff";
+      artworkContext.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+      if (fitMode === "fill") {
+        // Ayushman PDFs commonly use a wider source page than an ID-1 PVC card.
+        // Scale the complete artwork edge-to-edge instead of cropping identity data.
+        artworkContext.drawImage(image, 0, 0, CARD_WIDTH, CARD_HEIGHT);
+      } else {
+        const scale = Math.min(CARD_WIDTH / image.width, CARD_HEIGHT / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        artworkContext.drawImage(image, (CARD_WIDTH - width) / 2, (CARD_HEIGHT - height) / 2, width, height);
+      }
+
       const canvas = document.createElement("canvas");
       canvas.width = CARD_WIDTH;
       canvas.height = CARD_HEIGHT;
       const context = canvas.getContext("2d");
       if (!context) return reject(new Error("Could not prepare the export canvas."));
-      // Keep the canvas transparent outside the rounded card so PNG and PDF
-      // exports preserve the same physical corner shape as the preview.
-      context.clearRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+
+      // A PDF page is rectangular, so transparent rounded corners render as
+      // white in viewers. Paint small corner underlays sampled from the card
+      // artwork, then clip the artwork itself to keep the rounded silhouette
+      // without visible white patches at the four corners.
+      const sampleColor = (x: number, y: number) => {
+        const pixel = artworkContext.getImageData(Math.max(0, Math.min(CARD_WIDTH - 1, x)), Math.max(0, Math.min(CARD_HEIGHT - 1, y)), 1, 1).data;
+        return `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+      };
+      const underlaySize = CARD_CORNER_RADIUS;
+      const cornerColors = [
+        sampleColor(underlaySize + 8, underlaySize + 8),
+        sampleColor(CARD_WIDTH - underlaySize - 9, underlaySize + 8),
+        sampleColor(underlaySize + 8, CARD_HEIGHT - underlaySize - 9),
+        sampleColor(CARD_WIDTH - underlaySize - 9, CARD_HEIGHT - underlaySize - 9),
+      ];
+      [[0, 0], [CARD_WIDTH - underlaySize, 0], [0, CARD_HEIGHT - underlaySize], [CARD_WIDTH - underlaySize, CARD_HEIGHT - underlaySize]].forEach(([x, y], index) => {
+        context.fillStyle = cornerColors[index];
+        context.fillRect(x, y, underlaySize, underlaySize);
+      });
       context.save();
       clipRoundedCard(context);
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
-      if (fitMode === "fill") {
-        // Ayushman PDFs commonly use a wider source page than an ID-1 PVC card.
-        // Scale the complete artwork edge-to-edge instead of cropping identity data.
-        context.drawImage(image, 0, 0, CARD_WIDTH, CARD_HEIGHT);
-      } else {
-        const scale = Math.min(CARD_WIDTH / image.width, CARD_HEIGHT / image.height);
-        const width = image.width * scale;
-        const height = image.height * scale;
-        context.drawImage(image, (CARD_WIDTH - width) / 2, (CARD_HEIGHT - height) / 2, width, height);
-      }
+      context.drawImage(artwork, 0, 0);
       context.restore();
       resolve(canvas);
     };
