@@ -275,25 +275,9 @@ const canvasFromImage = (src: string, fitMode: FitMode = "contain"): Promise<HTM
       const context = canvas.getContext("2d");
       if (!context) return reject(new Error("Could not prepare the export canvas."));
 
-      // A PDF page is rectangular, so transparent rounded corners render as
-      // white in viewers. Paint small corner underlays sampled from the card
-      // artwork, then clip the artwork itself to keep the rounded silhouette
-      // without visible white patches at the four corners.
-      const sampleColor = (x: number, y: number) => {
-        const pixel = artworkContext.getImageData(Math.max(0, Math.min(CARD_WIDTH - 1, x)), Math.max(0, Math.min(CARD_HEIGHT - 1, y)), 1, 1).data;
-        return `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
-      };
-      const underlaySize = CARD_CORNER_RADIUS;
-      const cornerColors = [
-        sampleColor(underlaySize + 8, underlaySize + 8),
-        sampleColor(CARD_WIDTH - underlaySize - 9, underlaySize + 8),
-        sampleColor(underlaySize + 8, CARD_HEIGHT - underlaySize - 9),
-        sampleColor(CARD_WIDTH - underlaySize - 9, CARD_HEIGHT - underlaySize - 9),
-      ];
-      [[0, 0], [CARD_WIDTH - underlaySize, 0], [0, CARD_HEIGHT - underlaySize], [CARD_WIDTH - underlaySize, CARD_HEIGHT - underlaySize]].forEach(([x, y], index) => {
-        context.fillStyle = cornerColors[index];
-        context.fillRect(x, y, underlaySize, underlaySize);
-      });
+      // Do not paint any corner underlay. The area outside the rounded path
+      // stays transparent, so the print PDF carries only the card silhouette
+      // and no artificial white or sampled-color background.
       context.save();
       clipRoundedCard(context);
       context.drawImage(artwork, 0, 0);
