@@ -39,6 +39,7 @@ interface CanvasRect {
   y: number;
   width: number;
   height: number;
+  horizontalOffset?: number;
 }
 
 const cardTemplates: Array<{
@@ -71,7 +72,10 @@ const cropCanvasToDataUrl = (source: HTMLCanvasElement, rect: CanvasRect): strin
   if (!context) throw new Error("Could not prepare the card crop.");
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  context.drawImage(source, rect.x, rect.y, rect.width, rect.height, 0, 0, crop.width, crop.height);
+  const shift = Math.max(-Math.floor(rect.width - 1), Math.min(Math.floor(rect.width - 1), rect.horizontalOffset ?? 0));
+  const sourceX = rect.x + (shift < 0 ? -shift : 0);
+  const sourceWidth = Math.max(1, rect.width - Math.abs(shift));
+  context.drawImage(source, sourceX, rect.y, sourceWidth, rect.height, 0, 0, crop.width, crop.height);
   return crop.toDataURL("image/png");
 };
 
@@ -203,6 +207,9 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
       y: top,
       width: Math.max(1, right - x + 1),
       height: bottom - top,
+      // The merged-wide Jiyarul layout needs opposite face alignment. Separate
+      // panel layouts (including Signed PAN) remain unchanged.
+      horizontalOffset: hasSeparatePanPanels ? 0 : (isFront ? -3 : 3),
     };
   });
 };
@@ -227,7 +234,7 @@ const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[
       const panRects = detectPanCardRects(canvas);
       if (panRects) return panRects.map((rect, index) => ({ pageNumber: index + 1, src: cropCanvasToDataUrl(canvas, rect) }));
     }
-    pages.push({ pageNumber, src: canvas.toDataURL("image/png") });
+      pages.push({ pageNumber, src: canvas.toDataURL("image/png") });
   }
 
   return pages;
@@ -455,7 +462,7 @@ const CardPrintStudio = () => {
                     <Button type="button" variant="outline" size="sm" onClick={clearPdf}><X className="mr-1.5 h-4 w-4" /> Replace PDF</Button>
                   </div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    {pages.map((page, index) => <div key={page.pageNumber} className="rounded-2xl border border-border bg-background/60 p-3"><div className="flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>Page {page.pageNumber}</span><span>{index === 0 ? "Front" : "Back"}</span></div><img src={page.src} alt={`Card page ${page.pageNumber}`} className={`mt-2 aspect-[1011/638] w-full rounded-xl bg-muted/30 ${selectedTemplate.fitMode === "fill" ? "object-fill" : "object-contain"}`} /></div>)}
+                    {pages.map((page, index) => <div key={page.pageNumber} className="overflow-hidden rounded-2xl border border-border bg-background/60 p-3"><div className="flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>Page {page.pageNumber}</span><span>{index === 0 ? "Front" : "Back"}</span></div><img src={page.src} alt={`Card page ${page.pageNumber}`} style={page.horizontalOffset ? { transform: `translateX(${(page.horizontalOffset / CARD_WIDTH) * 100}%)` } : undefined} className={`mt-2 aspect-[1011/638] w-full rounded-xl bg-muted/30 ${selectedTemplate.fitMode === "fill" ? "object-fill" : "object-contain"}`} /></div>)}
                     {pages.length === 1 && <div className="flex min-h-32 items-center justify-center rounded-2xl border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">No second page found.<br />The exported PDF will contain the front only.</div>}
                   </div>
                 </div>
@@ -471,7 +478,7 @@ const CardPrintStudio = () => {
 
             <aside className="glass-card min-w-0 p-5 sm:p-7" aria-labelledby="preview-title">
               <div className="mb-6 flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Step 2</p><h2 id="preview-title" className="mt-1 text-2xl font-bold">PVC preview</h2></div><button type="button" onClick={() => setActiveFace(activeFace === "front" ? "back" : "front")} className="rounded-full border border-border p-2 text-muted-foreground transition-colors hover:bg-muted" aria-label="Flip preview side"><FlipHorizontal2 className="h-4 w-4" /></button></div>
-              <div className="rounded-[1.6rem] border border-border/70 bg-gradient-to-br from-muted/70 via-background to-primary/[0.06] p-3 shadow-inner sm:p-5"><div className="relative aspect-[1011/638] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_50px_rgba(25,35,75,0.16)]">{activePage ? <img src={activePage.src} alt={`${selectedTemplate.label} ${activeFace} preview`} className={`h-full w-full ${selectedTemplate.fitMode === "fill" ? "object-fill" : "object-contain"}`} /> : <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-white to-violet-500/10 p-6 text-center"><PremiumIconFrame tone={selectedTemplate.tone} size="lg" aria-hidden="true"><CardTypeIcon kind={selectedTemplate.id} className="h-12 w-[4.5rem]" /></PremiumIconFrame><p className="mt-4 text-sm font-bold">{selectedTemplate.label}</p><p className="mt-1 text-xs text-muted-foreground">Upload one card PDF to preview</p></div>}<span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">{activeFace}</span></div></div>
+              <div className="rounded-[1.6rem] border border-border/70 bg-gradient-to-br from-muted/70 via-background to-primary/[0.06] p-3 shadow-inner sm:p-5"><div className="relative aspect-[1011/638] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_20px_50px_rgba(25,35,75,0.16)]">{activePage ? <img src={activePage.src} alt={`${selectedTemplate.label} ${activeFace} preview`} style={activePage.horizontalOffset ? { transform: `translateX(${(activePage.horizontalOffset / CARD_WIDTH) * 100}%)` } : undefined} className={`h-full w-full ${selectedTemplate.fitMode === "fill" ? "object-fill" : "object-contain"}`} /> : <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-white to-violet-500/10 p-6 text-center"><PremiumIconFrame tone={selectedTemplate.tone} size="lg" aria-hidden="true"><CardTypeIcon kind={selectedTemplate.id} className="h-12 w-[4.5rem]" /></PremiumIconFrame><p className="mt-4 text-sm font-bold">{selectedTemplate.label}</p><p className="mt-1 text-xs text-muted-foreground">Upload one card PDF to preview</p></div>}<span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">{activeFace}</span></div></div>
               <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setActiveFace("front")} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeFace === "front" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Front page</button><button type="button" onClick={() => setActiveFace("back")} disabled={!pages[1]} className={`rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${activeFace === "back" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Back page</button></div>
               <div className="mt-6 space-y-2"><Button type="button" onClick={exportPdf} disabled={isProcessing || !hasPdf} className="h-11 w-full rounded-xl bg-primary font-semibold shadow-lg shadow-primary/20 hover:bg-primary/90"><Printer className="mr-2 h-4 w-4" /> {isProcessing ? "Preparing print PDF…" : "Export print-ready PDF"}</Button><div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={() => void exportFacePng("front")} disabled={isProcessing || !pages[0]} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Front PNG</Button><Button type="button" variant="outline" onClick={() => void exportFacePng("back")} disabled={isProcessing || !pages[1]} className="h-10 rounded-xl text-xs"><Download className="mr-1.5 h-3.5 w-3.5" /> Back PNG</Button></div></div>
             </aside>
