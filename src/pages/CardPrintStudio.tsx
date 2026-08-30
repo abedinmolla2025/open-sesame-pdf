@@ -181,14 +181,17 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   }
   if (panels.length !== 2) return null;
 
-  // Use opposite, edge-safe offsets for the two faces. Extending the Front
-  // crop only on its right moves the artwork a touch left while preserving its
-  // left border. Extending the Back crop only on its left moves the artwork a
-  // touch right while preserving its right border and QR/content area.
-  const faceAlignmentPad = 2;
+  // The Front detector can retain a narrow paper strip on the left while its
+  // rounded right edge is detected a little too early. Trim only that Front
+  // strip and extend its right boundary so the artwork is not over-zoomed or
+  // clipped. Keep the Back's independent right alignment unchanged.
+  const frontLeftTrim = 6;
+  const frontRightSafety = 8;
+  const backLeftPad = 2;
   return panels.map((panel, index) => {
-    const x = index === 0 ? panel.start : Math.max(0, panel.start - faceAlignmentPad);
-    const right = index === 0 ? Math.min(width - 1, panel.end + faceAlignmentPad) : panel.end;
+    const isFront = index === 0;
+    const x = isFront ? Math.min(panel.end, panel.start + frontLeftTrim) : Math.max(0, panel.start - backLeftPad);
+    const right = isFront ? Math.min(width - 1, panel.end + frontRightSafety) : panel.end;
     return {
       x,
       y: top,
