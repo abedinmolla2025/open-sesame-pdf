@@ -233,6 +233,20 @@ const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[
   return pages;
 };
 
+const CARD_CORNER_RADIUS = 56;
+
+const clipRoundedCard = (context: CanvasRenderingContext2D) => {
+  const radius = Math.min(CARD_CORNER_RADIUS, CARD_WIDTH / 2, CARD_HEIGHT / 2);
+  context.beginPath();
+  context.moveTo(radius, 0);
+  context.arcTo(CARD_WIDTH, 0, CARD_WIDTH, CARD_HEIGHT, radius);
+  context.arcTo(CARD_WIDTH, CARD_HEIGHT, 0, CARD_HEIGHT, radius);
+  context.arcTo(0, CARD_HEIGHT, 0, 0, radius);
+  context.arcTo(0, 0, CARD_WIDTH, 0, radius);
+  context.closePath();
+  context.clip();
+};
+
 const canvasFromImage = (src: string, fitMode: FitMode = "contain"): Promise<HTMLCanvasElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
@@ -242,6 +256,11 @@ const canvasFromImage = (src: string, fitMode: FitMode = "contain"): Promise<HTM
       canvas.height = CARD_HEIGHT;
       const context = canvas.getContext("2d");
       if (!context) return reject(new Error("Could not prepare the export canvas."));
+      // Keep the canvas transparent outside the rounded card so PNG and PDF
+      // exports preserve the same physical corner shape as the preview.
+      context.clearRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+      context.save();
+      clipRoundedCard(context);
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
       if (fitMode === "fill") {
@@ -254,6 +273,7 @@ const canvasFromImage = (src: string, fitMode: FitMode = "contain"): Promise<HTM
         const height = image.height * scale;
         context.drawImage(image, (CARD_WIDTH - width) / 2, (CARD_HEIGHT - height) / 2, width, height);
       }
+      context.restore();
       resolve(canvas);
     };
     image.onerror = () => reject(new Error("The selected PDF page could not be rendered."));
@@ -371,7 +391,8 @@ const CardPrintStudio = () => {
         const canvas = await canvasFromImage(cardPage.src, selectedTemplate.fitMode);
         const png = await pdf.embedPng(canvas.toDataURL("image/png"));
         const page = pdf.addPage([pageWidth, pageHeight]);
-        page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: rgb(1, 1, 1) });
+        // The embedded PNG carries transparent rounded corners; do not paint a
+        // rectangular page background over them.
         page.drawImage(png, { x: 0, y: 0, width: pageWidth, height: pageHeight });
         page.drawText(`${selectedTemplate.label} • ${cardPage.pageNumber === 1 ? "Front" : "Back"}`, { x: 8, y: 4, size: 4, color: rgb(0.45, 0.45, 0.45), opacity: 0.7 });
       }
