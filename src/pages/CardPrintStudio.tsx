@@ -159,6 +159,7 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   }
 
   let panels = spans.sort((left, right) => right.end - right.start - (left.end - left.start)).slice(0, 2).sort((left, right) => left.start - right.start);
+  const hasSeparatePanPanels = panels.length === 2;
   if (panels.length === 1) {
     const whole = panels[0];
     let split = whole.start + Math.floor((whole.end - whole.start) / 2);
@@ -181,13 +182,13 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   }
   if (panels.length !== 2) return null;
 
-  // The Front detector can retain a narrow paper strip on the left while its
-  // rounded right edge is detected a little too early. Trim only that Front
-  // strip and extend its right boundary so the artwork is not over-zoomed or
-  // clipped. Keep the Back's independent right alignment unchanged.
-  const frontLeftTrim = 6;
-  const frontRightSafety = 8;
-  const backLeftPad = 2;
+  // Separate-panel PDFs already expose tight Front/Back card boundaries;
+  // merged-wide A4 pairs need a small format-specific correction. Do not apply
+  // the merged-pair offsets to the separate-panel format, otherwise its exact
+  // right edge can be clipped or its scale can change.
+  const frontLeftTrim = hasSeparatePanPanels ? 0 : 6;
+  const frontRightSafety = hasSeparatePanPanels ? 0 : 8;
+  const backLeftPad = hasSeparatePanPanels ? 0 : 2;
   return panels.map((panel, index) => {
     const isFront = index === 0;
     const x = isFront ? Math.min(panel.end, panel.start + frontLeftTrim) : Math.max(0, panel.start - backLeftPad);
