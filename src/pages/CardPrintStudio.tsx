@@ -136,7 +136,12 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   }
 
   const separatorTrim = hasWideTopGuide ? 24 : 0;
-  const top = Math.min(height - 1, Math.max(0, bandTop - 2 + separatorTrim));
+  // The separate-panel Signed PAN layout has a tiny blank row above the first
+  // solid card pixels. Start at that card surface; the merged-wide profile keeps
+  // its own guide-aware vertical crop unchanged.
+  const top = hasWideTopGuide
+    ? Math.min(height - 1, Math.max(0, bandTop - 2 + separatorTrim))
+    : Math.min(height - 1, Math.max(0, bandTop + 1));
   const bottom = Math.min(height, Math.max(top + 1, bandBottom + 2 - separatorTrim));
   const columnCoverage = new Float32Array(width);
   for (let x = 0; x < width; x += 1) {
