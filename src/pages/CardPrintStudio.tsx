@@ -250,13 +250,13 @@ const detectAadhaarCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null 
 
   const left = Math.round(width * 0.053);
   const right = Math.round(width * 0.947);
-  const top = Math.round(height * 0.692);
-  const bottom = Math.round(height * 0.891);
+  const top = Math.round(height * 0.700);
+  const bottom = Math.round(height * 0.889);
   const split = Math.round(width * 0.5);
   const edgeTrim = Math.max(3, Math.round(width * 0.004));
   const seamTrim = Math.max(3, Math.round(width * 0.004));
-  const topTrim = Math.max(8, Math.round(height * 0.006));
-  const bottomTrim = Math.max(3, Math.round(height * 0.002));
+  const topTrim = Math.max(2, Math.round(height * 0.001));
+  const bottomTrim = Math.max(1, Math.round(height * 0.001));
   const y = top + topTrim;
   const cardHeight = Math.max(1, bottom - top - topTrim - bottomTrim);
   const frontX = left + edgeTrim;
