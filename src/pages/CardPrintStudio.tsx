@@ -51,7 +51,7 @@ const cardTemplates: Array<{
 }> = [
   { id: "pan", label: "PAN Card", description: "Income Tax / PAN card", tone: "gold", fitMode: "fill" },
   { id: "aadhaar", label: "Aadhaar", description: "UIDAI identity card", tone: "blue", fitMode: "contain" },
-  { id: "ration", label: "Ration Card", description: "Family ration card", tone: "mint", fitMode: "contain" },
+  { id: "ration", label: "Ration Card", description: "Family ration card", tone: "mint", fitMode: "fill" },
   { id: "ayushman", label: "Ayushman Card", description: "Health benefit card", tone: "violet", fitMode: "fill" },
   { id: "custom", label: "Custom ID", description: "Any PVC identity card", tone: "slate", fitMode: "contain" },
 ];
@@ -214,6 +214,34 @@ const detectPanCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
   });
 };
 
+const detectRationCardRects = (canvas: HTMLCanvasElement): CanvasRect[] | null => {
+  const { width, height } = canvas;
+  // West Bengal e-Ration PDFs place one printable Front/Back pair in the
+  // lower portion of a single A4 page. Keep this profile isolated from PAN.
+  if (width < 700 || height < 1000) return null;
+
+  const left = Math.round(width * 0.066);
+  const right = Math.round(width * 0.934);
+  const top = Math.round(height * 0.778);
+  const bottom = Math.round(height * 0.974);
+  const split = Math.round(width * 0.5);
+  const edgeTrim = Math.max(3, Math.round(width * 0.004));
+  const seamTrim = Math.max(3, Math.round(width * 0.004));
+  const verticalTrim = Math.max(4, Math.round(height * 0.004));
+  const y = top + verticalTrim;
+  const cardHeight = Math.max(1, bottom - top - verticalTrim * 2);
+  const frontX = left + edgeTrim;
+  const backX = split + seamTrim;
+  const frontRight = split - seamTrim;
+  const backRight = right - edgeTrim;
+
+  if (frontRight <= frontX || backRight <= backX || cardHeight < 40) return null;
+  return [
+    { x: frontX, y, width: frontRight - frontX, height: cardHeight },
+    { x: backX, y, width: backRight - backX, height: cardHeight },
+  ];
+};
+
 const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[]> => {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
@@ -234,7 +262,11 @@ const renderPdfPages = async (file: File, cardKind: CardKind): Promise<CardPage[
       const panRects = detectPanCardRects(canvas);
       if (panRects) return panRects.map((rect, index) => ({ pageNumber: index + 1, src: cropCanvasToDataUrl(canvas, rect) }));
     }
-      pages.push({ pageNumber, src: canvas.toDataURL("image/png") });
+    if (cardKind === "ration" && pdfDocument.numPages === 1) {
+      const rationRects = detectRationCardRects(canvas);
+      if (rationRects) return rationRects.map((rect, index) => ({ pageNumber: index + 1, src: cropCanvasToDataUrl(canvas, rect) }));
+    }
+    pages.push({ pageNumber, src: canvas.toDataURL("image/png") });
   }
 
   return pages;
@@ -351,14 +383,14 @@ const CardPrintStudio = () => {
       if (renderedPages.length === 1) {
         toast({ title: "Front page detected", description: "This one-page PDF is ready. Add a second page to include the back side." });
       } else if (renderedPages.length > 1) {
-        toast({ title: "Front and back detected", description: cardKind === "pan" && renderedPages.length === 2 ? "The printable PAN pair was extracted automatically from the A4 sheet." : "Page 1 is Front and Page 2 is Back." });
+        toast({ title: "Front and back detected", description: cardKind === "pan" && renderedPages.length === 2 ? "The printable PAN pair was extracted automatically from the A4 sheet." : cardKind === "ration" && renderedPages.length === 2 ? "The printable Ration Card pair was extracted automatically from the A4 sheet." : "Page 1 is Front and Page 2 is Back." });
       }
     } catch (error) {
       toast({ title: "PDF preview failed", description: error instanceof Error ? error.message : "Could not read this PDF.", variant: "destructive" });
     } finally {
       setIsProcessing(false);
     }
-  }, [toast]);
+  }, [toast, cardKind]);
 
   const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
